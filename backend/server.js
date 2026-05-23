@@ -1,4 +1,3 @@
-require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
@@ -66,7 +65,8 @@ async function tryMongo() {
     User = require('./models/User');
     Item = require('./models/Item');
     Rental = require('./models/Rental');
-    await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/rental-system', { serverSelectionTimeoutMS: 15000 });
+    const mongoURI = process.env.MONGODB_URI || 'mongodb+srv://111221212q_db_user:a9797387@cluster0.jqph8ma.mongodb.net/rental-system?appName=Cluster0';
+    await mongoose.connect(mongoURI, { serverSelectionTimeoutMS: 15000 });
     useMongo = true;
     console.log('Using MongoDB');
 
