@@ -80,7 +80,7 @@ const itemSchema = new mongoose.Schema({
   }
 });
 
-itemSchema.pre('save', function(next) {
+itemSchema.pre('save', function() {
   if (this.available === 0) {
     this.status = 'unavailable';
   } else if (this.available <= this.stock * 0.2) {
@@ -89,7 +89,6 @@ itemSchema.pre('save', function(next) {
     this.status = 'available';
   }
   this.updatedAt = Date.now();
-  next();
 });
 
 module.exports = mongoose.model('Item', itemSchema);
