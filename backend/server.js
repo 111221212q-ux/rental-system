@@ -65,7 +65,7 @@ async function tryMongo() {
     User = require('./models/User');
     Item = require('./models/Item');
     Rental = require('./models/Rental');
-    const mongoURI = process.env.MONGODB_URI || 'mongodb+srv://111221212q_db_user:a9797387@cluster0.jqph8ma.mongodb.net/rental-system?appName=Cluster0';
+    const mongoURI = process.env.MONGODB_URI || 'mongodb+srv://111221212q_db_user:njh.6f%40PNSL%21gYx@cluster0.jqph8ma.mongodb.net/rental-system?appName=Cluster0';
     await mongoose.connect(mongoURI, { serverSelectionTimeoutMS: 15000 });
     useMongo = true;
     console.log('Using MongoDB');
