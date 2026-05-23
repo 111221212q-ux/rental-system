@@ -57,6 +57,8 @@ function loadData() {
 
 // ── Try MongoDB ──────────────────────────────────────────
 async function tryMongo() {
+  const uri = process.env.MONGODB_URI;
+  console.log('MONGODB_URI:', uri ? uri.replace(/:[^:@]+@/, ':****@') : 'NOT SET');
   try {
     mongoose = require('mongoose');
     User = require('./models/User');
