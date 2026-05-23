@@ -62,7 +62,7 @@ async function tryMongo() {
     User = require('./models/User');
     Item = require('./models/Item');
     Rental = require('./models/Rental');
-    await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/rental-system', { serverSelectionTimeoutMS: 5000 });
+    await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/rental-system', { serverSelectionTimeoutMS: 15000 });
     useMongo = true;
     console.log('Using MongoDB');
 
@@ -95,7 +95,7 @@ async function tryMongo() {
     }
     return true;
   } catch (e) {
-    console.log('MongoDB not available, using JSON file storage');
+    console.log('MongoDB not available (' + e.message + '), using JSON file storage');
     return false;
   }
 }
