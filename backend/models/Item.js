@@ -15,7 +15,7 @@ const itemSchema = new mongoose.Schema({
   category: {
     type: String,
     required: true,
-    enum: ['electronics', 'furniture', 'tools', 'sports', 'books', 'others']
+    enum: ['电子产品', '办公用品', '运动器材', '生活用品', '其他', 'electronics', 'furniture', 'tools', 'sports', 'books', 'others']
   },
   description: {
     type: String,
