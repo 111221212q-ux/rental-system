@@ -61,6 +61,9 @@ const itemSchema = new mongoose.Schema({
   image: {
     type: String
   },
+  datasheetUrl: {
+    type: String
+  },
   status: {
     type: String,
     enum: ['available', 'low_stock', 'unavailable'],

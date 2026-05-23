@@ -5,7 +5,7 @@ const bcrypt = require('bcryptjs');
 const fs = require('fs');
 const path = require('path');
 
-let mongoose, User, Item, Rental;
+let mongoose, User, Item, Rental, Comment;
 let useMongo = false;
 
 // ── JSON File Storage ────────────────────────────────────
@@ -61,6 +61,7 @@ async function tryMongo() {
     User = require('./models/User');
     Item = require('./models/Item');
     Rental = require('./models/Rental');
+    Comment = require('./models/Comment');
     const mongoURI = process.env.MONGODB_URI || 'mongodb+srv://111221212q_db_user:njh.6f%40PNSL%21gYx@cluster0.jqph8ma.mongodb.net/rental-system?appName=Cluster0';
     await mongoose.connect(mongoURI, { serverSelectionTimeoutMS: 15000 });
     useMongo = true;
@@ -105,7 +106,7 @@ async function tryMongo() {
 // ── Mongo serializers ────────────────────────────────────
 function sItemM(doc) {
   const o = doc.toObject ? doc.toObject() : doc;
-  return { id: o._id.toString(), name: o.name, code: o.code, category: o.category, description: o.description || '', totalStock: o.stock, availableStock: o.available, maxRentalDays: o.maxRentalDays, maxRentalQty: o.maxRentalQty || 5, requireApproval: o.requiresApproval, value: o.value || 0, status: o.status };
+  return { id: o._id.toString(), name: o.name, code: o.code, category: o.category, description: o.description || '', totalStock: o.stock, availableStock: o.available, maxRentalDays: o.maxRentalDays, maxRentalQty: o.maxRentalQty || 5, requireApproval: o.requiresApproval, value: o.value || 0, image: o.image || '', datasheetUrl: o.datasheetUrl || '', status: o.status };
 }
 
 function sUserM(doc) {
@@ -228,15 +229,15 @@ app.get('/api/items', async (_, res) => {
 
 app.post('/api/items', auth, admin, async (req, res) => {
   try {
-    const { name, code, category, description, totalStock, maxRentalDays, maxRentalQty, requireApproval, value } = req.body;
+    const { name, code, category, description, totalStock, maxRentalDays, maxRentalQty, requireApproval, value, image, datasheetUrl } = req.body;
     if (!name || !code || !totalStock) return res.status(400).json({ error: '请填写必要信息：物品名称、编码、总库存' });
     if (useMongo) {
       if (await Item.findOne({ code })) return res.status(400).json({ error: '物品编码已存在' });
-      const item = await new Item({ name, code, category: category || '电子产品', description: description || '', stock: parseInt(totalStock), available: parseInt(totalStock), maxRentalDays: parseInt(maxRentalDays) || 7, maxRentalQty: parseInt(maxRentalQty) || 5, requiresApproval: requireApproval || false, value: parseInt(value) || 0, dailyRate: 0 }).save();
+      const item = await new Item({ name, code, category: category || '电子产品', description: description || '', stock: parseInt(totalStock), available: parseInt(totalStock), maxRentalDays: parseInt(maxRentalDays) || 7, maxRentalQty: parseInt(maxRentalQty) || 5, requiresApproval: requireApproval || false, value: parseInt(value) || 0, image: image || '', datasheetUrl: datasheetUrl || '', dailyRate: 0 }).save();
       return res.status(201).json({ message: '物品添加成功', item: sItemM(item) });
     } else {
       if (items.find(i => i.code === code)) return res.status(400).json({ error: '物品编码已存在' });
-      const newItem = { id: String(items.length + 1), name, code, category: category || '电子产品', description: description || '', totalStock: parseInt(totalStock), availableStock: parseInt(totalStock), maxRentalDays: parseInt(maxRentalDays) || 7, maxRentalQty: parseInt(maxRentalQty) || 5, requireApproval: requireApproval || false, value: parseInt(value) || 0, status: 'available' };
+      const newItem = { id: String(items.length + 1), name, code, category: category || '电子产品', description: description || '', totalStock: parseInt(totalStock), availableStock: parseInt(totalStock), maxRentalDays: parseInt(maxRentalDays) || 7, maxRentalQty: parseInt(maxRentalQty) || 5, requireApproval: requireApproval || false, value: parseInt(value) || 0, image: image || '', datasheetUrl: datasheetUrl || '', status: 'available' };
       items.push(newItem); saveData();
       return res.status(201).json({ message: '物品添加成功', item: newItem });
     }
@@ -245,7 +246,7 @@ app.post('/api/items', auth, admin, async (req, res) => {
 
 app.put('/api/items/:id', auth, admin, async (req, res) => {
   try {
-    const { name, code, category, description, maxRentalDays, maxRentalQty, requireApproval, value } = req.body;
+    const { name, code, category, description, maxRentalDays, maxRentalQty, requireApproval, value, image, datasheetUrl } = req.body;
     if (useMongo) {
       const item = await Item.findById(req.params.id);
       if (!item) return res.status(404).json({ error: '物品不存在' });
@@ -257,6 +258,8 @@ app.put('/api/items/:id', auth, admin, async (req, res) => {
       if (maxRentalQty) item.maxRentalQty = parseInt(maxRentalQty);
       if (typeof requireApproval === 'boolean') item.requiresApproval = requireApproval;
       if (value) item.value = parseInt(value);
+      if (image !== undefined) item.image = image;
+      if (datasheetUrl !== undefined) item.datasheetUrl = datasheetUrl;
       await item.save();
       return res.json({ message: '物品更新成功', item: sItemM(item) });
     } else {
@@ -270,6 +273,8 @@ app.put('/api/items/:id', auth, admin, async (req, res) => {
       if (maxRentalQty) item.maxRentalQty = parseInt(maxRentalQty);
       if (typeof requireApproval === 'boolean') item.requireApproval = requireApproval;
       if (value) item.value = parseInt(value);
+      if (image !== undefined) item.image = image;
+      if (datasheetUrl !== undefined) item.datasheetUrl = datasheetUrl;
       item.updatedAt = new Date(); saveData();
       return res.json({ message: '物品更新成功', item });
     }
@@ -500,6 +505,57 @@ app.put('/api/admin/users/:id/status', auth, superadmin, async (req, res) => {
       user.active = active; saveData();
       return res.json({ message: active ? '账号已启用' : '账号已禁用', active });
     }
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── Comments ─────────────────────────────────────────────
+app.get('/api/items/:id/comments', async (req, res) => {
+  if (useMongo) {
+    const list = await Comment.find({ item: req.params.id }).populate('user', 'username role').sort({ isPinned: -1, createdAt: -1 }).lean();
+    return res.json(list.map(c => ({ id: c._id.toString(), itemId: c.item.toString(), userId: c.user?._id?.toString() || '', username: c.user?.username || '未知', userRole: c.user?.role || 'user', content: c.content, isPinned: c.isPinned, createdAt: c.createdAt })));
+  }
+  res.json([]);
+});
+
+app.post('/api/items/:id/comments', auth, async (req, res) => {
+  try {
+    const { content } = req.body;
+    if (!content || !content.trim()) return res.status(400).json({ error: '评论内容不能为空' });
+    if (content.length > 500) return res.status(400).json({ error: '评论不能超过500字' });
+    if (useMongo) {
+      const item = await Item.findById(req.params.id);
+      if (!item) return res.status(404).json({ error: '物品不存在' });
+      const c = await new Comment({ item: item._id, user: req.user._id, content: content.trim() }).save();
+      await c.populate('user', 'username role');
+      return res.status(201).json({ message: '评论成功', comment: { id: c._id.toString(), itemId: item._id.toString(), userId: req.user._id.toString(), username: req.user.username, userRole: req.user.role, content: c.content, isPinned: false, createdAt: c.createdAt } });
+    }
+    res.status(500).json({ error: '评论功能需要MongoDB' });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/comments/:id', auth, async (req, res) => {
+  try {
+    if (useMongo) {
+      const c = await Comment.findById(req.params.id);
+      if (!c) return res.status(404).json({ error: '评论不存在' });
+      const isAdmin = req.user.role === 'admin' || req.user.role === 'superadmin';
+      if (c.user.toString() !== req.user._id.toString() && !isAdmin) return res.status(403).json({ error: '无权删除' });
+      await Comment.findByIdAndDelete(req.params.id);
+      return res.json({ message: '评论已删除' });
+    }
+    res.status(500).json({ error: '评论功能需要MongoDB' });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/comments/:id/pin', auth, admin, async (req, res) => {
+  try {
+    if (useMongo) {
+      const c = await Comment.findById(req.params.id);
+      if (!c) return res.status(404).json({ error: '评论不存在' });
+      c.isPinned = !c.isPinned; await c.save();
+      return res.json({ message: c.isPinned ? '已置顶' : '已取消置顶', isPinned: c.isPinned });
+    }
+    res.status(500).json({ error: '评论功能需要MongoDB' });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
