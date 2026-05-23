@@ -43,9 +43,8 @@ const reservationSchema = new mongoose.Schema({
   }
 });
 
-reservationSchema.pre('save', function(next) {
+reservationSchema.pre('save', function() {
   this.updatedAt = Date.now();
-  next();
 });
 
 reservationSchema.index({ item: 1, startDate: 1, endDate: 1 });
