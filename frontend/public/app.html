@@ -463,9 +463,34 @@ tr:hover td{background:linear-gradient(90deg,rgba(99,102,241,.03),transparent)}
         <div class="form-group"><label class="form-label">需要审核</label><select class="input" id="new-item-approval"><option value="false">否</option><option value="true">是</option></select></div>
         <div class="form-group"><label class="form-label">价值（元）</label><input class="input" id="new-item-value" type="number" min="0" value="0"></div>
       </div>
+      <div class="form-group"><label class="form-label">单人限租数量</label><input class="input" id="new-item-max-qty" type="number" min="1" value="5"></div>
       <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
         <button class="btn btn-outline" onclick="closeAddItemModal()">取消</button>
         <button class="btn btn-primary" onclick="handleAddItem()">确认添加</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="edit-item-modal" class="modal-overlay hidden" onclick="if(event.target===this)closeEditItemModal()">
+  <div class="modal"><div class="modal-header"><h3>编辑物品</h3><button class="modal-close" onclick="closeEditItemModal()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+    <div class="modal-body">
+      <input type="hidden" id="edit-item-id">
+      <div class="form-group"><label class="form-label">名称 *</label><input class="input" id="edit-item-name" placeholder="物品名称"></div>
+      <div class="form-group"><label class="form-label">编码 *</label><input class="input" id="edit-item-code" placeholder="物品编码"></div>
+      <div class="form-group"><label class="form-label">类别</label><select class="input" id="edit-item-category"><option>电子产品</option><option>办公用品</option><option>运动器材</option><option>生活用品</option></select></div>
+      <div class="form-group"><label class="form-label">描述</label><textarea class="input" id="edit-item-desc" rows="2" placeholder="物品描述"></textarea></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-group"><label class="form-label">最大租借天数</label><input class="input" id="edit-item-days" type="number" min="1" value="7"></div>
+        <div class="form-group"><label class="form-label">单人限租数量</label><input class="input" id="edit-item-max-qty" type="number" min="1" value="5"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-group"><label class="form-label">需要审核</label><select class="input" id="edit-item-approval"><option value="false">否</option><option value="true">是</option></select></div>
+        <div class="form-group"><label class="form-label">价值（元）</label><input class="input" id="edit-item-value" type="number" min="0" value="0"></div>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
+        <button class="btn btn-outline" onclick="closeEditItemModal()">取消</button>
+        <button class="btn btn-primary" onclick="handleEditItem()">保存修改</button>
       </div>
     </div>
   </div>
@@ -653,7 +678,7 @@ function itemCard(item){
     <div class="item-desc">${item.description||'暂无描述'}</div>
     <div class="item-meta">
       <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>可用 ${item.availableStock}/${item.totalStock}</span>
-      <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>最长${item.maxRentalDays}天</span>
+      <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>最长${item.maxRentalDays}天</span><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>限租${item.maxRentalQty||5}件</span>
     </div>
     ${item.requireApproval?'<div style="font-size:12px;color:#f59e0b;margin-bottom:8px;display:flex;align-items:center;gap:4px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>需要管理员审核</div>':''}
     <div class="item-actions">
@@ -720,7 +745,10 @@ function renderAdminItems(){
     <td style="font-size:13px;color:var(--text-muted)">${i.code}</td><td><strong>${i.name}</strong></td>
     <td>${i.category}</td><td>${i.totalStock}/${i.availableStock}</td><td>${i.maxRentalDays}天</td>
     <td><span class="badge badge-${i.status}">${i.status==='available'?'可租借':i.status==='low_stock'?'库存不足':'不可租借'}</span></td>
-    <td><button class="btn btn-danger btn-sm" onclick="deleteItem('${i.id}')">删除</button></td>
+    <td><div style="display:flex;gap:4px">
+      <button class="btn btn-outline btn-sm" onclick="showEditItemModal('${i.id}')">编辑</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteItem('${i.id}')">删除</button>
+    </div></td>
   </tr>`).join('');
 }
 
@@ -775,15 +803,38 @@ function showAddItemModal(){
   ['new-item-name','new-item-code','new-item-desc','new-item-image'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});
   document.getElementById('new-item-category').value='电子产品';
   document.getElementById('new-item-stock').value='1';document.getElementById('new-item-days').value='7';
-  document.getElementById('new-item-approval').value='false';document.getElementById('new-item-value').value='0';
+  document.getElementById('new-item-max-qty').value='5';document.getElementById('new-item-approval').value='false';document.getElementById('new-item-value').value='0';
   document.getElementById('add-item-modal').classList.remove('hidden');
 }
 function closeAddItemModal(){document.getElementById('add-item-modal').classList.add('hidden')}
+function showEditItemModal(id){
+  const i=allItems.find(x=>x.id===id);if(!i)return;
+  document.getElementById('edit-item-id').value=i.id;
+  document.getElementById('edit-item-name').value=i.name;
+  document.getElementById('edit-item-code').value=i.code;
+  document.getElementById('edit-item-category').value=i.category;
+  document.getElementById('edit-item-desc').value=i.description||'';
+  document.getElementById('edit-item-days').value=i.maxRentalDays;
+  document.getElementById('edit-item-max-qty').value=i.maxRentalQty||5;
+  document.getElementById('edit-item-approval').value=i.requireApproval?'true':'false';
+  document.getElementById('edit-item-value').value=i.value||0;
+  document.getElementById('edit-item-modal').classList.remove('hidden');
+}
+function closeEditItemModal(){document.getElementById('edit-item-modal').classList.add('hidden')}
+async function handleEditItem(){
+  const id=document.getElementById('edit-item-id').value;
+  const n=document.getElementById('edit-item-name').value.trim(),c=document.getElementById('edit-item-code').value.trim();
+  if(!n||!c){toast('请填写名称和编码','error');return}
+  try{
+    await api('PUT','/items/'+id,{name:n,code:c,category:document.getElementById('edit-item-category').value,description:document.getElementById('edit-item-desc').value.trim(),maxRentalDays:parseInt(document.getElementById('edit-item-days').value)||7,maxRentalQty:parseInt(document.getElementById('edit-item-max-qty').value)||5,requireApproval:document.getElementById('edit-item-approval').value==='true',value:parseInt(document.getElementById('edit-item-value').value)||0});
+    toast('修改成功');closeEditItemModal();allItems=await api('GET','/items');renderItems();renderDashboard();if(adminTab==='items')renderAdminItems()
+  }catch(e){toast(e.message,'error')}
+}
 async function handleAddItem(){
   const n=document.getElementById('new-item-name').value.trim(),c=document.getElementById('new-item-code').value.trim();
   if(!n||!c){toast('请填写名称和编码','error');return}
   try{
-    await api('POST','/items',{name:n,code:c,category:document.getElementById('new-item-category').value,description:document.getElementById('new-item-desc').value.trim(),totalStock:parseInt(document.getElementById('new-item-stock').value)||1,maxRentalDays:parseInt(document.getElementById('new-item-days').value)||7,requireApproval:document.getElementById('new-item-approval').value==='true',value:parseInt(document.getElementById('new-item-value').value)||0});
+    await api('POST','/items',{name:n,code:c,category:document.getElementById('new-item-category').value,description:document.getElementById('new-item-desc').value.trim(),totalStock:parseInt(document.getElementById('new-item-stock').value)||1,maxRentalDays:parseInt(document.getElementById('new-item-days').value)||7,maxRentalQty:parseInt(document.getElementById('new-item-max-qty').value)||5,requireApproval:document.getElementById('new-item-approval').value==='true',value:parseInt(document.getElementById('new-item-value').value)||0});
     toast('添加成功');closeAddItemModal();allItems=await api('GET','/items');renderItems();renderDashboard();if(adminTab==='items')renderAdminItems()
   }catch(e){toast(e.message,'error')}
 }

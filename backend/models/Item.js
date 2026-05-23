@@ -50,6 +50,10 @@ const itemSchema = new mongoose.Schema({
     type: Number,
     default: 30
   },
+  maxRentalQty: {
+    type: Number,
+    default: 5
+  },
   value: {
     type: Number,
     default: 0

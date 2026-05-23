@@ -21,12 +21,12 @@ let users = [
 let nextUserId = 6;
 
 let items = [
-  { id: '1', name: '笔记本电脑 Pro', code: 'LP001', category: '电子产品', description: '高性能笔记本电脑，适合办公和学习', totalStock: 10, availableStock: 8, maxRentalDays: 7, requireApproval: true, value: 5000, status: 'available' },
-  { id: '2', name: '办公椅', code: 'OC002', category: '办公用品', description: '人体工学办公椅', totalStock: 5, availableStock: 3, maxRentalDays: 3, requireApproval: false, value: 500, status: 'available' },
-  { id: '3', name: '投影仪', code: 'PJ003', category: '电子产品', description: '高清投影仪，适合会议和演示', totalStock: 3, availableStock: 1, maxRentalDays: 1, requireApproval: true, value: 3000, status: 'available' },
-  { id: '4', name: 'iPad Pro', code: 'IP004', category: '电子产品', description: '平板电脑，适合移动办公', totalStock: 5, availableStock: 4, maxRentalDays: 3, requireApproval: true, value: 4000, status: 'available' },
-  { id: '5', name: '移动电源', code: 'PB005', category: '电子产品', description: '10000mAh大容量移动电源', totalStock: 20, availableStock: 15, maxRentalDays: 1, requireApproval: false, value: 200, status: 'available' },
-  { id: '6', name: '会议桌', code: 'MT006', category: '办公用品', description: '可折叠会议桌，适合小型会议', totalStock: 2, availableStock: 0, maxRentalDays: 1, requireApproval: true, value: 800, status: 'unavailable' },
+  { id: '1', name: '笔记本电脑 Pro', code: 'LP001', category: '电子产品', description: '高性能笔记本电脑，适合办公和学习', totalStock: 10, availableStock: 8, maxRentalDays: 7, maxRentalQty: 1, requireApproval: true, value: 5000, status: 'available' },
+  { id: '2', name: '办公椅', code: 'OC002', category: '办公用品', description: '人体工学办公椅', totalStock: 5, availableStock: 3, maxRentalDays: 3, maxRentalQty: 2, requireApproval: false, value: 500, status: 'available' },
+  { id: '3', name: '投影仪', code: 'PJ003', category: '电子产品', description: '高清投影仪，适合会议和演示', totalStock: 3, availableStock: 1, maxRentalDays: 1, maxRentalQty: 1, requireApproval: true, value: 3000, status: 'available' },
+  { id: '4', name: 'iPad Pro', code: 'IP004', category: '电子产品', description: '平板电脑，适合移动办公', totalStock: 5, availableStock: 4, maxRentalDays: 3, maxRentalQty: 1, requireApproval: true, value: 4000, status: 'available' },
+  { id: '5', name: '移动电源', code: 'PB005', category: '电子产品', description: '10000mAh大容量移动电源', totalStock: 20, availableStock: 15, maxRentalDays: 1, maxRentalQty: 3, requireApproval: false, value: 200, status: 'available' },
+  { id: '6', name: '会议桌', code: 'MT006', category: '办公用品', description: '可折叠会议桌，适合小型会议', totalStock: 2, availableStock: 0, maxRentalDays: 1, maxRentalQty: 1, requireApproval: true, value: 800, status: 'unavailable' },
 ];
 
 let rentals = [
@@ -82,12 +82,12 @@ async function tryMongo() {
         { username: 'superadmin', email: 'superadmin@test.com', password: hsuper, role: 'superadmin', phone: '13800138099', department: '信息中心', firstRental: false },
       ]);
       const it = await Item.insertMany([
-        { name: '笔记本电脑 Pro', code: 'LP001', category: '电子产品', description: '高性能笔记本电脑，适合办公和学习', stock: 10, available: 8, maxRentalDays: 7, requiresApproval: true, value: 5000, status: 'available', dailyRate: 0 },
-        { name: '办公椅', code: 'OC002', category: '办公用品', description: '人体工学办公椅', stock: 5, available: 3, maxRentalDays: 3, requiresApproval: false, value: 500, status: 'available', dailyRate: 0 },
-        { name: '投影仪', code: 'PJ003', category: '电子产品', description: '高清投影仪，适合会议和演示', stock: 3, available: 1, maxRentalDays: 1, requiresApproval: true, value: 3000, status: 'available', dailyRate: 0 },
-        { name: 'iPad Pro', code: 'IP004', category: '电子产品', description: '平板电脑，适合移动办公', stock: 5, available: 4, maxRentalDays: 3, requiresApproval: true, value: 4000, status: 'available', dailyRate: 0 },
-        { name: '移动电源', code: 'PB005', category: '电子产品', description: '10000mAh大容量移动电源', stock: 20, available: 15, maxRentalDays: 1, requiresApproval: false, value: 200, status: 'available', dailyRate: 0 },
-        { name: '会议桌', code: 'MT006', category: '办公用品', description: '可折叠会议桌，适合小型会议', stock: 2, available: 0, maxRentalDays: 1, requiresApproval: true, value: 800, status: 'unavailable', dailyRate: 0 },
+        { name: '笔记本电脑 Pro', code: 'LP001', category: '电子产品', description: '高性能笔记本电脑，适合办公和学习', stock: 10, available: 8, maxRentalDays: 7, maxRentalQty: 1, requiresApproval: true, value: 5000, status: 'available', dailyRate: 0 },
+        { name: '办公椅', code: 'OC002', category: '办公用品', description: '人体工学办公椅', stock: 5, available: 3, maxRentalDays: 3, maxRentalQty: 2, requiresApproval: false, value: 500, status: 'available', dailyRate: 0 },
+        { name: '投影仪', code: 'PJ003', category: '电子产品', description: '高清投影仪，适合会议和演示', stock: 3, available: 1, maxRentalDays: 1, maxRentalQty: 1, requiresApproval: true, value: 3000, status: 'available', dailyRate: 0 },
+        { name: 'iPad Pro', code: 'IP004', category: '电子产品', description: '平板电脑，适合移动办公', stock: 5, available: 4, maxRentalDays: 3, maxRentalQty: 1, requiresApproval: true, value: 4000, status: 'available', dailyRate: 0 },
+        { name: '移动电源', code: 'PB005', category: '电子产品', description: '10000mAh大容量移动电源', stock: 20, available: 15, maxRentalDays: 1, maxRentalQty: 3, requiresApproval: false, value: 200, status: 'available', dailyRate: 0 },
+        { name: '会议桌', code: 'MT006', category: '办公用品', description: '可折叠会议桌，适合小型会议', stock: 2, available: 0, maxRentalDays: 1, maxRentalQty: 1, requiresApproval: true, value: 800, status: 'unavailable', dailyRate: 0 },
       ]);
       await Rental.insertMany([
         { item: it[0]._id, user: u[1]._id, quantity: 1, startDate: new Date('2024-05-20'), endDate: new Date('2024-05-22'), status: 'approved', approvedBy: u[0]._id, approvedAt: new Date('2024-05-19'), notes: '课程设计' },
@@ -105,7 +105,7 @@ async function tryMongo() {
 // ── Mongo serializers ────────────────────────────────────
 function sItemM(doc) {
   const o = doc.toObject ? doc.toObject() : doc;
-  return { id: o._id.toString(), name: o.name, code: o.code, category: o.category, description: o.description || '', totalStock: o.stock, availableStock: o.available, maxRentalDays: o.maxRentalDays, requireApproval: o.requiresApproval, value: o.value || 0, status: o.status };
+  return { id: o._id.toString(), name: o.name, code: o.code, category: o.category, description: o.description || '', totalStock: o.stock, availableStock: o.available, maxRentalDays: o.maxRentalDays, maxRentalQty: o.maxRentalQty || 5, requireApproval: o.requiresApproval, value: o.value || 0, status: o.status };
 }
 
 function sUserM(doc) {
@@ -228,15 +228,15 @@ app.get('/api/items', async (_, res) => {
 
 app.post('/api/items', auth, admin, async (req, res) => {
   try {
-    const { name, code, category, description, totalStock, maxRentalDays, requireApproval, value } = req.body;
+    const { name, code, category, description, totalStock, maxRentalDays, maxRentalQty, requireApproval, value } = req.body;
     if (!name || !code || !totalStock) return res.status(400).json({ error: '请填写必要信息：物品名称、编码、总库存' });
     if (useMongo) {
       if (await Item.findOne({ code })) return res.status(400).json({ error: '物品编码已存在' });
-      const item = await new Item({ name, code, category: category || '电子产品', description: description || '', stock: parseInt(totalStock), available: parseInt(totalStock), maxRentalDays: parseInt(maxRentalDays) || 7, requiresApproval: requireApproval || false, value: parseInt(value) || 0, dailyRate: 0 }).save();
+      const item = await new Item({ name, code, category: category || '电子产品', description: description || '', stock: parseInt(totalStock), available: parseInt(totalStock), maxRentalDays: parseInt(maxRentalDays) || 7, maxRentalQty: parseInt(maxRentalQty) || 5, requiresApproval: requireApproval || false, value: parseInt(value) || 0, dailyRate: 0 }).save();
       return res.status(201).json({ message: '物品添加成功', item: sItemM(item) });
     } else {
       if (items.find(i => i.code === code)) return res.status(400).json({ error: '物品编码已存在' });
-      const newItem = { id: String(items.length + 1), name, code, category: category || '电子产品', description: description || '', totalStock: parseInt(totalStock), availableStock: parseInt(totalStock), maxRentalDays: parseInt(maxRentalDays) || 7, requireApproval: requireApproval || false, value: parseInt(value) || 0, status: 'available' };
+      const newItem = { id: String(items.length + 1), name, code, category: category || '电子产品', description: description || '', totalStock: parseInt(totalStock), availableStock: parseInt(totalStock), maxRentalDays: parseInt(maxRentalDays) || 7, maxRentalQty: parseInt(maxRentalQty) || 5, requireApproval: requireApproval || false, value: parseInt(value) || 0, status: 'available' };
       items.push(newItem); saveData();
       return res.status(201).json({ message: '物品添加成功', item: newItem });
     }
@@ -245,7 +245,7 @@ app.post('/api/items', auth, admin, async (req, res) => {
 
 app.put('/api/items/:id', auth, admin, async (req, res) => {
   try {
-    const { name, code, category, description, maxRentalDays, requireApproval, value } = req.body;
+    const { name, code, category, description, maxRentalDays, maxRentalQty, requireApproval, value } = req.body;
     if (useMongo) {
       const item = await Item.findById(req.params.id);
       if (!item) return res.status(404).json({ error: '物品不存在' });
@@ -254,6 +254,7 @@ app.put('/api/items/:id', auth, admin, async (req, res) => {
       if (category) item.category = category;
       if (description) item.description = description;
       if (maxRentalDays) item.maxRentalDays = parseInt(maxRentalDays);
+      if (maxRentalQty) item.maxRentalQty = parseInt(maxRentalQty);
       if (typeof requireApproval === 'boolean') item.requiresApproval = requireApproval;
       if (value) item.value = parseInt(value);
       await item.save();
@@ -266,6 +267,7 @@ app.put('/api/items/:id', auth, admin, async (req, res) => {
       if (category) item.category = category;
       if (description) item.description = description;
       if (maxRentalDays) item.maxRentalDays = parseInt(maxRentalDays);
+      if (maxRentalQty) item.maxRentalQty = parseInt(maxRentalQty);
       if (typeof requireApproval === 'boolean') item.requireApproval = requireApproval;
       if (value) item.value = parseInt(value);
       item.updatedAt = new Date(); saveData();
@@ -324,6 +326,11 @@ app.post('/api/rentals', auth, async (req, res) => {
       const item = await Item.findById(itemId);
       if (!item) return res.status(404).json({ error: '物品不存在' });
       if (item.available < quantity) return res.status(400).json({ error: '库存不足' });
+      const maxQty = item.maxRentalQty || 5;
+      if (quantity > maxQty) return res.status(400).json({ error: `该物品单人限租 ${maxQty} 件` });
+      // Anti-duplicate: reject if same user+item pending within 30s
+      const recent = await Rental.findOne({ user: req.user._id, item: item._id, status: 'pending', createdAt: { $gte: new Date(Date.now() - 30000) } });
+      if (recent) return res.status(400).json({ error: '请勿重复提交，您已有该物品的待审核申请' });
       const rental = await new Rental({ item: item._id, user: req.user._id, quantity, startDate: new Date(startDate), endDate: new Date(endDate), status: 'pending', notes: reason }).save();
       const result = await sRentalM(rental);
       return res.status(201).json({ message: '申请提交成功', rental: result });
@@ -331,6 +338,11 @@ app.post('/api/rentals', auth, async (req, res) => {
       const item = items.find(i => i.id === itemId);
       if (!item) return res.status(404).json({ error: '物品不存在' });
       if (item.availableStock < quantity) return res.status(400).json({ error: '库存不足' });
+      const maxQty = item.maxRentalQty || 5;
+      if (quantity > maxQty) return res.status(400).json({ error: `该物品单人限租 ${maxQty} 件` });
+      const now = Date.now();
+      const recent = rentals.find(r => r.userId === req.user.id && r.itemId === itemId && r.status === 'pending' && (now - new Date(r.createdAt).getTime()) < 30000);
+      if (recent) return res.status(400).json({ error: '请勿重复提交，您已有该物品的待审核申请' });
       const newRental = { id: String(nextRentalId++), userId: req.user.id, itemId, itemCode: item.code, itemName: item.name, quantity, startDate: new Date(startDate), endDate: new Date(endDate), reason, status: 'pending', createdAt: new Date() };
       rentals.push(newRental); saveData();
       return res.status(201).json({ message: '申请提交成功', rental: newRental });
