@@ -66,9 +66,10 @@ async function tryMongo() {
     useMongo = true;
     console.log('Using MongoDB');
 
-    // Seed if empty (or incomplete from failed deploy)
-    if (await User.countDocuments() === 0 || await Item.countDocuments() === 0) {
-      if (await User.countDocuments() > 0) { await User.deleteMany({}); console.log('Cleared partial seed data'); }
+    // Only seed when database is completely empty (first deploy)
+    const userCount = await User.countDocuments();
+    const itemCount = await Item.countDocuments();
+    if (userCount === 0 && itemCount === 0) {
       console.log('Seeding MongoDB...');
       const hp = await bcrypt.hash('admin123', 10);
       const huser = await bcrypt.hash('123456', 10);
