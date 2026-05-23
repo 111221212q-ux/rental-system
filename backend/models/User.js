@@ -34,6 +34,14 @@ const userSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
+  wechat: {
+    type: String,
+    trim: true
+  },
+  firstRental: {
+    type: Boolean,
+    default: true
+  },
   active: {
     type: Boolean,
     default: true

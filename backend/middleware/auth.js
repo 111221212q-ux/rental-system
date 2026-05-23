@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
+const { mockUsers } = require('../mockUsers');
 
-const auth = async (req, res, next) => {
+const auth = (req, res, next) => {
   try {
     const token = req.header('Authorization')?.replace('Bearer ', '');
 
@@ -9,8 +10,7 @@ const auth = async (req, res, next) => {
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
-    const User = require('../models/User');
-    const user = await User.findById(decoded.userId).select('-password');
+    const user = mockUsers.find(u => u.id === decoded.userId);
 
     if (!user || !user.active) {
       return res.status(401).json({ error: 'User not found or inactive' });

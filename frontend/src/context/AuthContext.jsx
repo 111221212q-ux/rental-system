@@ -32,6 +32,19 @@ export const AuthProvider = ({ children }) => {
     checkAuth();
   }, []);
 
+  // 处理自动登录的额外逻辑
+  useEffect(() => {
+    // 如果没有用户但本地存储了用户名，说明需要手动重新登录
+    const storedUsername = localStorage.getItem('rental_username');
+    const storedRemember = localStorage.getItem('rental_remember');
+
+    if (storedRemember === 'true' && storedUsername && !user) {
+      // 清除存储的密码，强制用户重新登录
+      localStorage.removeItem('rental_password');
+      localStorage.removeItem('rental_remember');
+    }
+  }, [user]);
+
   const login = async (email, password) => {
     const response = await api.post('/auth/login', { email, password });
     const { token, user } = response.data;

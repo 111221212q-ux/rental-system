@@ -50,6 +50,10 @@ const itemSchema = new mongoose.Schema({
     type: Number,
     default: 30
   },
+  value: {
+    type: Number,
+    default: 0
+  },
   image: {
     type: String
   },

@@ -1,0 +1,12 @@
+{
+  "name": "rental-system",
+  "version": "1.0.0",
+  "description": "校园物品免费租借系统",
+  "scripts": {
+    "start": "cd backend && node server.js",
+    "dev": "cd backend && node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

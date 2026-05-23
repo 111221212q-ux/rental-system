@@ -1,12 +1,11 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-// https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
   server: {
-    host: true,
-    allowedHosts: ['ludicrous-password-daredevil.ngrok-free.dev'],
+    host: '0.0.0.0',
+    port: 5181,
     proxy: {
       '/api': {
         target: 'http://localhost:5000',
