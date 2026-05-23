@@ -153,6 +153,11 @@ function admin(req, res, next) {
   res.status(403).json({ error: '需要管理员权限' });
 }
 
+function superadmin(req, res, next) {
+  if (req.user.role === 'superadmin') return next();
+  res.status(403).json({ error: '需要超级管理员权限' });
+}
+
 // ── Auth Routes ──────────────────────────────────────────
 app.post('/api/auth/register', async (req, res) => {
   try {
@@ -439,6 +444,51 @@ app.get('/api/admin/users', auth, admin, async (req, res) => {
     return { id: u.id, username: u.username, email: u.email || '', role: u.role || 'user', wechat: u.wechat || '', phone: u.phone || '', active: u.active !== false, totalRentals: userRentals.length, activeRentals: userRentals.filter(r => ['approved', 'active'].includes(r.status)).length, pendingRentals: userRentals.filter(r => r.status === 'pending').length, lastRental: userRentals.length > 0 ? Math.max(...userRentals.map(r => new Date(r.createdAt).getTime())) : null };
   });
   res.json(result);
+});
+
+// ── Superadmin: User Management ──────────────────────────
+app.put('/api/admin/users/:id/role', auth, superadmin, async (req, res) => {
+  try {
+    const { role } = req.body;
+    if (!['user', 'admin'].includes(role)) return res.status(400).json({ error: '无效的角色' });
+    if (req.params.id === req.user._id.toString()) return res.status(400).json({ error: '不能修改自己的角色' });
+
+    if (useMongo) {
+      const user = await User.findById(req.params.id);
+      if (!user) return res.status(404).json({ error: '用户不存在' });
+      if (user.role === 'superadmin') return res.status(400).json({ error: '不能修改超级管理员' });
+      user.role = role; await user.save();
+      return res.json({ message: `用户角色已更新为 ${role === 'admin' ? '管理员' : '普通用户'}`, role });
+    } else {
+      const user = users.find(u => u.id === req.params.id);
+      if (!user) return res.status(404).json({ error: '用户不存在' });
+      if (user.role === 'superadmin') return res.status(400).json({ error: '不能修改超级管理员' });
+      user.role = role; saveData();
+      return res.json({ message: `用户角色已更新为 ${role === 'admin' ? '管理员' : '普通用户'}`, role });
+    }
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/admin/users/:id/status', auth, superadmin, async (req, res) => {
+  try {
+    const { active } = req.body;
+    if (typeof active !== 'boolean') return res.status(400).json({ error: '无效的状态' });
+    if (req.params.id === req.user._id.toString()) return res.status(400).json({ error: '不能修改自己的状态' });
+
+    if (useMongo) {
+      const user = await User.findById(req.params.id);
+      if (!user) return res.status(404).json({ error: '用户不存在' });
+      if (user.role === 'superadmin') return res.status(400).json({ error: '不能禁用超级管理员' });
+      user.active = active; await user.save();
+      return res.json({ message: active ? '账号已启用' : '账号已禁用', active });
+    } else {
+      const user = users.find(u => u.id === req.params.id);
+      if (!user) return res.status(404).json({ error: '用户不存在' });
+      if (user.role === 'superadmin') return res.status(400).json({ error: '不能禁用超级管理员' });
+      user.active = active; saveData();
+      return res.json({ message: active ? '账号已启用' : '账号已禁用', active });
+    }
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // ── Notifications ────────────────────────────────────────

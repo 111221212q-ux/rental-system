@@ -427,7 +427,7 @@ tr:hover td{background:linear-gradient(90deg,rgba(99,102,241,.03),transparent)}
         <div id="admin-users" class="admin-tab hidden">
           <div class="card" style="padding:0">
             <div class="table-wrap" style="border:none">
-              <table><thead><tr><th>学号</th><th>微信</th><th>手机</th><th>角色</th><th>状态</th></tr></thead><tbody id="users-table"></tbody></table>
+              <table><thead><tr><th>学号</th><th>微信</th><th>手机</th><th>角色</th><th>状态</th><th class="superadmin-only hidden">操作</th></tr></thead><tbody id="users-table"></tbody></table>
             </div>
           </div>
         </div>
@@ -731,12 +731,32 @@ async function deleteItem(id){
 
 function renderAdminUsers(){
   const t=document.getElementById('users-table');
-  if(allUsers.length===0){t.innerHTML='<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:24px">暂无数据</td></tr>';return}
-  t.innerHTML=allUsers.map(u=>`<tr>
-    <td><strong>${u.username}</strong></td><td>${u.wechat||'-'}</td><td>${u.phone||'-'}</td>
-    <td><span class="badge badge-${u.role}">${u.role}</span></td>
-    <td>${u.active!==false?'<span style="color:var(--success)">● 正常</span>':'<span style="color:var(--danger)">● 禁用</span>'}</td>
-  </tr>`).join('');
+  const isSuper=currentUser&&currentUser.role==='superadmin';
+  if(allUsers.length===0){t.innerHTML='<tr><td colspan="'+(isSuper?'6':'5')+'" style="text-align:center;color:var(--text-muted);padding:24px">暂无数据</td></tr>';return}
+  const rm={superadmin:'超级管理员',admin:'管理员',user:'普通用户'};
+  t.innerHTML=allUsers.map(u=>{
+    const me=u.id===currentUser.id||u.username===currentUser.username;
+    const isOtherSuper=u.role==='superadmin';
+    const noEdit=me||isOtherSuper;
+    let actions='<td class="superadmin-only hidden">-</td>';
+    if(isSuper&&!noEdit){
+      const nextRole=u.role==='admin'?'user':'admin';
+      const nextLabel=u.role==='admin'?'降为普通用户':'升为管理员';
+      const toggleLabel=u.active!==false?'禁用':'启用';
+      const toggleActive=u.active!==false?'false':'true';
+      actions=`<td class="superadmin-only hidden" style="white-space:nowrap"><div style="display:flex;gap:4px">
+        <button class="btn btn-outline btn-sm" onclick="changeUserRole('${u.id}','${nextRole}')">${nextLabel}</button>
+        <button class="btn btn-sm ${u.active!==false?'btn-danger':'btn-success'}" onclick="toggleUserStatus('${u.id}',${toggleActive})">${toggleLabel}</button>
+      </div></td>`;
+    }
+    return `<tr>
+      <td><strong>${u.username}</strong></td><td>${u.wechat||'-'}</td><td>${u.phone||'-'}</td>
+      <td><span class="badge badge-${u.role}">${rm[u.role]||u.role}</span></td>
+      <td>${u.active!==false?'<span style="color:var(--success)">● 正常</span>':'<span style="color:var(--danger)">● 禁用</span>'}</td>
+      ${actions}
+    </tr>`;
+  }).join('');
+  if(isSuper)document.querySelectorAll('.superadmin-only').forEach(el=>el.classList.remove('hidden'));
 }
 
 function renderAdminStats(){
@@ -783,6 +803,13 @@ async function handleApplyRental(){
     await api('POST','/rentals',{itemId:rentalItemId,quantity:q,startDate:s,endDate:e,reason:r});
     toast('申请已提交');closeRentalModal();myRentals=await api('GET','/rentals/my');allItems=await api('GET','/items');renderMyRentals();renderDashboard()
   }catch(e){toast(e.message,'error')}
+}
+
+async function changeUserRole(id,role){
+  try{await api('PUT','/admin/users/'+id+'/role',{role});toast(role==='admin'?'已升为管理员':'已降为普通用户');allUsers=await api('GET','/admin/users');renderAdminUsers()}catch(e){toast(e.message,'error')}
+}
+async function toggleUserStatus(id,active){
+  try{await api('PUT','/admin/users/'+id+'/status',{active});toast(active?'已启用':'已禁用');allUsers=await api('GET','/admin/users');renderAdminUsers()}catch(e){toast(e.message,'error')}
 }
 
 async function returnItem(id){
