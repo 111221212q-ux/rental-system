@@ -81,18 +81,8 @@ const rentalSchema = new mongoose.Schema({
   }
 });
 
-rentalSchema.pre('save', function(next) {
+rentalSchema.pre('save', function() {
   this.updatedAt = Date.now();
-
-  const daysDiff = Math.ceil((this.endDate - this.startDate) / (1000 * 60 * 60 * 24));
-  this.totalCost = daysDiff * this.dailyRate;
-
-  if (this.returnDate && this.returnDate > this.endDate) {
-    const overdueDays = Math.ceil((this.returnDate - this.endDate) / (1000 * 60 * 60 * 24));
-    this.lateFee = overdueDays * this.lateFeePerDay;
-  }
-
-  next();
 });
 
 rentalSchema.index({ user: 1, status: 1 });
