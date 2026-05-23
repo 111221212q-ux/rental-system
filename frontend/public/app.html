@@ -123,6 +123,9 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
 .card-title{font-size:15px;font-weight:600;color:var(--text)}
 .card-desc{font-size:13px;color:var(--text-muted);margin-top:2px}
+.detail-layout{display:grid;grid-template-columns:1fr 360px;gap:24px;align-items:start}
+.detail-image-wrap{border-radius:12px;overflow:hidden;margin-bottom:16px}
+.detail-image-wrap img{width:100%;max-height:360px;object-fit:cover;display:block}
 
 /* Stats - full gradient background */
 .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:20px;margin-bottom:28px}
@@ -298,6 +301,7 @@ tr:hover td{background:linear-gradient(90deg,rgba(99,102,241,.03),transparent)}
   .stats-grid{grid-template-columns:1fr 1fr}
   .items-grid{grid-template-columns:1fr}
   .toolbar .input{max-width:100%}
+  .detail-layout{grid-template-columns:1fr}
 }
 @media(max-width:480px){
   .stats-grid{grid-template-columns:1fr}
@@ -443,6 +447,40 @@ tr:hover td{background:linear-gradient(90deg,rgba(99,102,241,.03),transparent)}
           </div>
         </div>
       </div>
+
+      <!-- Detail Page -->
+      <div id="page-detail" class="page hidden">
+        <div class="page-header">
+          <div style="display:flex;align-items:center;gap:12px">
+            <button class="btn btn-outline btn-sm" onclick="goBackFromDetail()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><polyline points="15 18 9 12 15 6"/></svg> 返回列表
+            </button>
+            <h2 id="detail-page-title">物品详情</h2>
+          </div>
+        </div>
+        <div class="detail-layout">
+          <div class="detail-main">
+            <div id="detail-image"></div>
+            <div class="card" id="detail-info"></div>
+          </div>
+          <div class="detail-side">
+            <div class="card" id="detail-rental-card">
+              <div class="card-title" style="margin-bottom:12px">申请租借</div>
+              <div id="detail-rental-form"></div>
+            </div>
+            <div class="card" style="margin-top:16px">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+                <div class="card-title">评论 (<span id="comment-count">0</span>)</div>
+              </div>
+              <div id="comment-list" style="max-height:400px;overflow-y:auto;margin-bottom:12px"></div>
+              <div style="display:flex;gap:8px">
+                <input class="input" id="comment-input" placeholder="写下你的评论..." maxlength="500" style="flex:1">
+                <button class="btn btn-primary btn-sm" onclick="handleAddComment()">发表</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -519,23 +557,6 @@ tr:hover td{background:linear-gradient(90deg,rgba(99,102,241,.03),transparent)}
 </div>
 
 <!-- Login -->
-<div id="detail-modal" class="modal-overlay hidden" onclick="if(event.target===this)closeDetailModal()">
-  <div class="modal" style="max-width:560px"><div class="modal-header"><h3 id="detail-title">物品详情</h3><button class="modal-close" onclick="closeDetailModal()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
-    <div class="modal-body">
-      <div id="detail-content"></div>
-      <div id="detail-rental-form" style="border-top:1px solid var(--border);margin-top:12px;padding-top:12px"></div>
-      <div style="border-top:1px solid var(--border);margin-top:16px;padding-top:16px">
-        <h4 style="font-size:14px;font-weight:600;margin-bottom:12px">评论 (<span id="comment-count">0</span>)</h4>
-        <div id="comment-list" style="max-height:240px;overflow-y:auto;margin-bottom:12px"></div>
-        <div style="display:flex;gap:8px">
-          <input class="input" id="comment-input" placeholder="写下你的评论..." maxlength="500" style="flex:1">
-          <button class="btn btn-primary btn-sm" onclick="handleAddComment()">发表</button>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
 <div id="login-page">
   <div class="login-bg"><div class="o1"></div><div class="o2"></div><div class="o3"></div></div>
   <div class="login-grid"></div>
@@ -643,18 +664,19 @@ async function loadData(){
   }catch(e){}
 }
 
-const PT={dashboard:'仪表板',items:'物品列表','my-rentals':'我的租借',admin:'管理后台'};
+const PT={dashboard:'仪表板',items:'物品列表','my-rentals':'我的租借',admin:'管理后台',detail:'物品详情'};
 function switchPage(page){
   document.querySelectorAll('.page').forEach(p=>p.classList.add('hidden'));
   document.getElementById('page-'+page).classList.remove('hidden');
   document.querySelectorAll('.nav-link').forEach(l=>l.classList.remove('active'));
-  const nl=document.querySelectorAll('.nav-link'),idx=['dashboard','items','my-rentals','admin'].indexOf(page);
-  if(idx>=0&&nl[idx])nl[idx].classList.add('active');
+  const pages=['dashboard','items','my-rentals','admin'];
+  const idx=pages.indexOf(page);
+  if(idx>=0){const nl=document.querySelectorAll('.nav-link');if(nl[idx])nl[idx].classList.add('active')}
   document.getElementById('page-title').textContent=PT[page]||page;
   document.getElementById('sidebar').classList.remove('open');document.getElementById('sidebar-overlay').classList.remove('open');
   renderPage(page);
 }
-function renderPage(p){if(p==='dashboard')renderDashboard();else if(p==='items')renderItems();else if(p==='my-rentals')renderMyRentals();else if(p==='admin')renderAdminApprovals()}
+function renderPage(p){if(p==='dashboard')renderDashboard();else if(p==='items')renderItems();else if(p==='my-rentals')renderMyRentals();else if(p==='admin')renderAdminApprovals();else if(p==='detail')renderDetail()}
 
 // Dashboard
 function renderDashboard(){
@@ -704,7 +726,7 @@ function itemCard(item){
     </div>
     ${item.requireApproval?'<div style="font-size:12px;color:#f59e0b;margin-bottom:8px;display:flex;align-items:center;gap:4px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>需要管理员审核</div>':''}
     <div class="item-actions">
-      <button class="btn btn-primary btn-sm" onclick="showDetailModal('${item.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>查看详情</button>
+      <button class="btn btn-primary btn-sm" onclick="showDetailPage('${item.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>查看详情</button>
       ${currentUser&&(currentUser.role==='admin'||currentUser.role==='superadmin')?`<button class="btn btn-danger btn-sm" onclick="deleteItem('${item.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>删除</button>`:''}
     </div>
   </div>`;
@@ -864,28 +886,35 @@ async function handleAddItem(){
 }
 
 let detailItemId=null,dComments=[];
-async function showDetailModal(id){
-  detailItemId=id;const i=allItems.find(x=>x.id===id);if(!i)return;
-  document.getElementById('detail-title').textContent=i.name;
+function showDetailPage(id){
+  detailItemId=id;switchPage('detail');
+}
+function goBackFromDetail(){detailItemId=null;switchPage('items')}
+function renderDetail(){
+  const i=allItems.find(x=>x.id===detailItemId);if(!i)return;
+  document.getElementById('detail-page-title').textContent=i.name;
   const stxt={available:'可租借',low_stock:'库存不足',unavailable:'不可租借'};
-  document.getElementById('detail-content').innerHTML=`
-    ${i.image?`<div style="margin-bottom:12px"><img src="${i.image}" alt="${i.name}" style="width:100%;max-height:240px;object-fit:cover;border-radius:8px" onerror="this.style.display='none'"></div>`:''}
+  // Image
+  document.getElementById('detail-image').innerHTML=i.image?`<div class="detail-image-wrap"><img src="${i.image}" alt="${i.name}" onerror="this.parentElement.style.display='none'"></div>`:'';
+  // Info
+  document.getElementById('detail-info').innerHTML=`
     <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:12px;font-size:13px;color:var(--text-secondary)">
       <span>编码: <strong>${i.code}</strong></span><span>分类: ${i.category}</span><span>库存: ${i.availableStock}/${i.totalStock}</span>
       <span>限租: ${i.maxRentalQty||5}件</span><span>最长: ${i.maxRentalDays}天</span>
       <span class="badge badge-${i.status}">${stxt[i.status]||i.status}</span>
     </div>
     <p style="font-size:14px;color:var(--text-secondary);margin-bottom:12px">${i.description||'暂无描述'}</p>
-    ${i.datasheetUrl?`<a href="${i.datasheetUrl}" target="_blank" class="btn btn-outline btn-sm" style="margin-bottom:8px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>数据手册</a>`:''}
+    ${i.datasheetUrl?`<a href="${i.datasheetUrl}" target="_blank" class="btn btn-outline btn-sm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>数据手册</a>`:''}
   `;
   // Rental form
   const canRent=i.status!=='unavailable'&&i.availableStock>0;
+  const rentalCard=document.getElementById('detail-rental-card');
   const rentalForm=document.getElementById('detail-rental-form');
   if(canRent&&currentUser){
+    rentalCard.classList.remove('hidden');
     const maxQ=i.maxRentalQty||5;
     const qtyOpts=Array.from({length:Math.min(maxQ,10)},(_,k)=>`<option>${k+1}</option>`).join('');
     rentalForm.innerHTML=`
-      <h4 style="font-size:14px;font-weight:600;margin-bottom:10px">申请租借</h4>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
         <div class="form-group"><label class="form-label">开始 *</label><input class="input" id="detail-rental-start" type="date"></div>
         <div class="form-group"><label class="form-label">结束 *</label><input class="input" id="detail-rental-end" type="date"></div>
@@ -897,11 +926,11 @@ async function showDetailModal(id){
     document.getElementById('detail-rental-start').valueAsDate=new Date();
     document.getElementById('detail-rental-end').value='';
   }else{
+    rentalCard.classList.remove('hidden');
     rentalForm.innerHTML=canRent?'<p style="font-size:13px;color:var(--text-muted);text-align:center;padding:8px">请先登录再申请租借</p>':'<p style="font-size:13px;color:var(--text-muted);text-align:center;padding:8px">该物品当前不可租借</p>';
   }
-  document.getElementById('detail-modal').classList.remove('hidden');
   document.getElementById('comment-input').value='';
-  await loadComments();
+  loadComments();
 }
 async function handleDetailRental(){
   const s=document.getElementById('detail-rental-start').value,e=document.getElementById('detail-rental-end').value;
@@ -909,10 +938,9 @@ async function handleDetailRental(){
   if(!s||!e){toast('请选择日期','error');return}if(!r){toast('请填写用途','error');return}if(new Date(e)<=new Date(s)){toast('结束日须晚于开始日','error');return}
   try{
     await api('POST','/rentals',{itemId:detailItemId,quantity:q,startDate:s,endDate:e,reason:r});
-    toast('申请已提交');closeDetailModal();allItems=await api('GET','/items');myRentals=await api('GET','/rentals/my');renderItems();renderMyRentals();renderDashboard()
+    toast('申请已提交');goBackFromDetail();allItems=await api('GET','/items');myRentals=await api('GET','/rentals/my');renderItems();renderMyRentals();renderDashboard()
   }catch(e){toast(e.message,'error')}
 }
-function closeDetailModal(){document.getElementById('detail-modal').classList.add('hidden');detailItemId=null}
 async function loadComments(){
   try{dComments=await api('GET','/items/'+detailItemId+'/comments')}catch(e){dComments=[]}
   renderComments();
