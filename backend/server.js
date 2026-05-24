@@ -376,7 +376,7 @@ app.post('/api/items', auth, admin, async (req, res) => {
 
 app.put('/api/items/:id', auth, admin, async (req, res) => {
   try {
-    const { name, code, category, description, maxRentalDays, maxRentalQty, requireApproval, value, image, datasheetUrl } = req.body;
+    const { name, code, category, description, totalStock, maxRentalDays, maxRentalQty, requireApproval, value, image, datasheetUrl } = req.body;
     if (useMongo) {
       const item = await Item.findById(req.params.id);
       if (!item) return res.status(404).json({ error: '物品不存在' });
@@ -390,6 +390,12 @@ app.put('/api/items/:id', auth, admin, async (req, res) => {
       if (value) item.value = parseInt(value);
       if (image !== undefined) item.image = image;
       if (datasheetUrl !== undefined) item.datasheetUrl = datasheetUrl;
+      if (totalStock) {
+        const newStock = parseInt(totalStock);
+        const diff = newStock - item.stock;
+        item.stock = newStock;
+        item.available = Math.max(0, item.available + diff);
+      }
       await item.save();
       return res.json({ message: '物品更新成功', item: sItemM(item) });
     } else {
@@ -405,6 +411,12 @@ app.put('/api/items/:id', auth, admin, async (req, res) => {
       if (value) item.value = parseInt(value);
       if (image !== undefined) item.image = image;
       if (datasheetUrl !== undefined) item.datasheetUrl = datasheetUrl;
+      if (totalStock) {
+        const newStock = parseInt(totalStock);
+        const diff = newStock - item.totalStock;
+        item.totalStock = newStock;
+        item.availableStock = Math.max(0, item.availableStock + diff);
+      }
       item.updatedAt = new Date(); saveData();
       return res.json({ message: '物品更新成功', item });
     }
