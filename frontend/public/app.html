@@ -695,7 +695,7 @@ tr:hover td{background:linear-gradient(90deg,rgba(99,102,241,.03),transparent)}
         <div class="form-group"><label class="form-label">密码</label><input class="input" id="login-password" type="password" placeholder="请输入密码"></div>
         <div class="form-group" style="margin-bottom:20px"><label class="checkbox-group"><input type="checkbox" id="remember-me"> 记住我</label></div>
         <div id="login-error" class="login-error hidden"></div>
-        <button class="btn btn-primary btn-lg" onclick="handleLogin()">登录</button>
+        <button class="btn btn-primary btn-lg" id="login-btn" onclick="handleLogin()">登录</button>
         <p class="login-footer-text">还没有账号？<a href="#" onclick="showRegister()">点击注册</a></p>
       </div>
       <div id="register-form" class="hidden">
@@ -705,7 +705,7 @@ tr:hover td{background:linear-gradient(90deg,rgba(99,102,241,.03),transparent)}
         <div class="form-group"><label class="form-label">邮箱 *</label><input class="input" id="reg-email" type="email" placeholder="必填，用于接收通知和验证"></div>
         <div class="form-group"><label class="form-label">微信号（选填）</label><input class="input" id="reg-wechat" type="text" placeholder="方便管理员联系"></div>
         <div class="form-group"><label class="form-label">手机号（选填）</label><input class="input" id="reg-phone" type="text" placeholder="联系电话"></div>
-        <button class="btn btn-primary btn-lg" onclick="handleRegister()">注册</button>
+        <button class="btn btn-primary btn-lg" id="reg-btn" onclick="handleRegister()">注册</button>
         <p class="login-footer-text">已有账号？<a href="#" onclick="showLogin()">点击登录</a></p>
       </div>
     </div>
@@ -733,11 +733,15 @@ tr:hover td{background:linear-gradient(90deg,rgba(99,102,241,.03),transparent)}
 const API_URL = '/api';
 let currentUser = null, allItems = [], allRentals = [], myRentals = [], allUsers = [], rentalItemId = null, adminTab = 'approvals', adminContact = null;
 const TK = 'rental_token', UK = 'rental_user';
-function gt(){return localStorage.getItem(TK)}
-function st(t){localStorage.setItem(TK,t)}
-function gu(){try{return JSON.parse(localStorage.getItem(UK))}catch(e){return null}}
-function su(u){localStorage.setItem(UK,JSON.stringify(u))}
-function ca(){localStorage.removeItem(TK);localStorage.removeItem(UK)}
+function gt(){return localStorage.getItem(TK)||sessionStorage.getItem(TK)}
+function st(t){const rm=document.getElementById('remember-me');if(rm&&rm.checked){localStorage.setItem(TK,t)}else{sessionStorage.setItem(TK,t)}}
+function esc(s){const d=document.createElement('div');d.textContent=s||'';return d.innerHTML}
+function escUrl(u){return u&&/^https?:\/\//i.test(u)?u:''}
+function gu(){try{return JSON.parse(localStorage.getItem(UK)||sessionStorage.getItem(UK))}catch(e){return null}}
+function su(u){const rm=document.getElementById('remember-me');if(rm&&rm.checked){localStorage.setItem(UK,JSON.stringify(u))}else{sessionStorage.setItem(UK,JSON.stringify(u))}}
+function ca(){localStorage.removeItem(TK);localStorage.removeItem(UK);sessionStorage.removeItem(TK);sessionStorage.removeItem(UK)}
+function disableBtn(btn,t){if(!btn||btn.disabled)return false;btn._txt=btn.textContent;btn.disabled=true;btn.textContent=t||'处理中...';return true}
+function enableBtn(btn){if(!btn)return;btn.disabled=false;btn.textContent=btn._txt||btn.textContent}
 
 function toast(msg,type='success'){
   const el=document.createElement('div');el.className='toast '+type;
@@ -761,28 +765,30 @@ function showLogin(){document.getElementById('login-form').classList.remove('hid
 
 async function handleLogin(){
   const u=document.getElementById('login-username').value.trim(),p=document.getElementById('login-password').value;
-  const errEl=document.getElementById('login-error'),btn=document.querySelector('.login-card-body .btn');
+  const errEl=document.getElementById('login-error'),btn=document.getElementById('login-btn');
   errEl.classList.add('hidden');
   if(!u||!p){errEl.innerHTML='⚠️ 请输入学号和密码';errEl.classList.remove('hidden');return}
-  btn.disabled=true;btn.textContent='登录中...';
+  if(!disableBtn(btn,'登录中...'))return;
   try{
     const d=await api('POST','/auth/login',{username:u,password:p});
     st(d.token);su(d.user);currentUser=d.user;enterMain();
   }catch(e){
+    enableBtn(btn);
     errEl.innerHTML='⚠️ '+e.message;errEl.classList.remove('hidden');
-    btn.disabled=false;btn.textContent='登录';
   }
 }
 
 async function handleRegister(){
+  const btn=document.getElementById('reg-btn');
+  if(!disableBtn(btn,'注册中...'))return;
   const u=document.getElementById('reg-username').value.trim(),p=document.getElementById('reg-password').value;
   const e=document.getElementById('reg-email').value.trim(),n=document.getElementById('reg-nickname').value.trim(),w=document.getElementById('reg-wechat').value.trim(),ph=document.getElementById('reg-phone').value.trim();
-  if(!u||p.length<6){toast('请输入学号，密码至少6位','error');return}
-  if(!e){toast('请输入邮箱','error');return}
+  if(!u||p.length<6){enableBtn(btn);toast('请输入学号，密码至少6位','error');return}
+  if(!e){enableBtn(btn);toast('请输入邮箱','error');return}
   try{
     const d=await api('POST','/auth/register',{username:u,password:p,email:e,nickname:n||undefined,wechat:w,phone:ph});
     st(d.token);su(d.user);currentUser=d.user;toast('注册成功');enterMain();
-  }catch(e){toast(e.message,'error')}
+  }catch(e){enableBtn(btn);toast(e.message,'error')}
 }
 
 function handleLogout(){ca();document.getElementById('login-page').classList.remove('hidden');document.getElementById('main-content').classList.add('hidden')}
@@ -841,8 +847,8 @@ function renderDashboard(){
     if(d.total===0){bar.classList.add('hidden');bar.innerHTML='';return}
     bar.classList.remove('hidden');
     bar.innerHTML=d.alerts.map(a=>a.type==='overdue'?
-      `<div class="alert alert-danger"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg><span><strong>${a.username}</strong> 的 <strong>${a.itemName}</strong> 已逾期 <strong>${a.daysOverdue}</strong> 天${a.phone?' · '+a.phone:''}</span></div>`:
-      `<div class="alert alert-warning"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg><span><strong>${a.username}</strong> 的 <strong>${a.itemName}</strong> 还有 <strong>${a.daysLeft}</strong> 天到期${a.phone?' · '+a.phone:''}</span></div>`
+      `<div class="alert alert-danger"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg><span><strong>${esc(a.username)}</strong> 的 <strong>${esc(a.itemName)}</strong> 已逾期 <strong>${a.daysOverdue}</strong> 天${a.phone?' · '+esc(a.phone):''}</span></div>`:
+      `<div class="alert alert-warning"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg><span><strong>${esc(a.username)}</strong> 的 <strong>${esc(a.itemName)}</strong> 还有 <strong>${a.daysLeft}</strong> 天到期${a.phone?' · '+esc(a.phone):''}</span></div>`
     ).join('');
   }).catch(()=>{});
   const g=document.getElementById('dashboard-items');
@@ -864,13 +870,13 @@ function itemCard(item){
   const canRent=item.status!=='unavailable'&&item.availableStock>0,cc={'电子产品':'#3b82f6','办公用品':'#10b981','运动器材':'#f59e0b','生活用品':'#8b5cf6'},co=cc[item.category]||'#6b7280';
   const stxt={available:'可租借',low_stock:'库存不足',unavailable:'不可租借'};
   return `<div class="card card-hover item-card">
-    ${item.image?`<div style="width:100%;height:140px;overflow:hidden;border-radius:8px;margin-bottom:10px"><img src="${item.image}" alt="${item.name}" style="width:100%;height:100%;object-fit:cover" onerror="this.parentElement.style.display='none'"></div>`:''}
+    ${item.image?`<div style="width:100%;height:140px;overflow:hidden;border-radius:8px;margin-bottom:10px"><img src="${escUrl(item.image)}" alt="${esc(item.name)}" style="width:100%;height:100%;object-fit:cover" onerror="this.parentElement.style.display='none'"></div>`:''}
     <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:8px">
-      <div style="flex:1"><div class="item-name">${item.name}</div><div class="item-code">${item.code}</div></div>
+      <div style="flex:1"><div class="item-name">${esc(item.name)}</div><div class="item-code">${esc(item.code)}</div></div>
       <span class="badge badge-${item.status}">${stxt[item.status]||item.status}</span>
     </div>
-    <span class="item-category-tag" style="background:${co}15;color:${co}">${item.category}</span>
-    <div class="item-desc">${item.description||'暂无描述'}</div>
+    <span class="item-category-tag" style="background:${co}15;color:${co}">${esc(item.category)}</span>
+    <div class="item-desc">${esc(item.description)||'暂无描述'}</div>
     <div class="item-meta">
       <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>可用 ${item.availableStock}/${item.totalStock}</span>
       <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>最长${item.maxRentalDays}天</span><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>限租${item.maxRentalQty||5}件</span>
@@ -897,7 +903,7 @@ function renderMyRentals(){
     const isOverdue=r.status==='active'&&new Date(r.endDate)<now;
     const status=isOverdue?'overdue':r.status;
     return `<tr ${isOverdue?'style="background:#fef2f2"':''}>
-      <td><strong>${r.itemName}</strong></td><td>${r.quantity}</td>
+      <td><strong>${esc(r.itemName)}</strong></td><td>${r.quantity}</td>
       <td style="font-size:13px">${new Date(r.startDate).toLocaleDateString()}</td><td style="font-size:13px">${new Date(r.endDate).toLocaleDateString()}</td>
       <td><span class="badge badge-${status}">${sm[status]||r.status}</span></td>
       <td style="font-size:13px;color:var(--text-muted)">${isOverdue?'已逾期，请联系管理员归还':st[r.status]||'-'}</td>
@@ -1044,26 +1050,26 @@ function showStatsDetail(type,filter){
   if(type==='items'){
     title.textContent='物品列表 ('+allItems.length+'件)';
     thead.innerHTML='<tr><th>编码</th><th>名称</th><th>分类</th><th>可用/总库存</th><th>最长天数</th><th>状态</th></tr>';
-    tbody.innerHTML=allItems.map(i=>`<tr><td style="font-size:13px;color:var(--text-muted)">${i.code}</td><td><strong>${i.name}</strong></td><td>${i.category}</td><td>${i.availableStock}/${i.totalStock}</td><td>${i.maxRentalDays}天</td><td><span class="badge badge-${i.status}">${i.status==='available'?'可租借':i.status==='low_stock'?'库存不足':'不可租借'}</span></td></tr>`).join('');
+    tbody.innerHTML=allItems.map(i=>`<tr><td style="font-size:13px;color:var(--text-muted)">${esc(i.code)}</td><td><strong>${esc(i.name)}</strong></td><td>${esc(i.category)}</td><td>${i.availableStock}/${i.totalStock}</td><td>${i.maxRentalDays}天</td><td><span class="badge badge-${i.status}">${i.status==='available'?'可租借':i.status==='low_stock'?'库存不足':'不可租借'}</span></td></tr>`).join('');
   }else if(type==='users'){
     title.textContent='用户列表 ('+allUsers.length+'人)';
     const rm={superadmin:'超级管理员',admin:'管理员',user:'普通用户'};
     thead.innerHTML='<tr><th>学号</th><th>微信</th><th>手机</th><th>角色</th><th>状态</th></tr>';
-    tbody.innerHTML=allUsers.map(u=>`<tr><td><strong>${u.username}</strong></td><td>${u.wechat||'-'}</td><td>${u.phone||'-'}</td><td><span class="badge badge-${u.role}">${rm[u.role]||u.role}</span></td><td>${u.active!==false?'<span style="color:var(--success)">正常</span>':'<span style="color:var(--danger)">禁用</span>'}</td></tr>`).join('');
+    tbody.innerHTML=allUsers.map(u=>`<tr><td><strong>${esc(u.username)}</strong></td><td>${esc(u.wechat)||'-'}</td><td>${esc(u.phone)||'-'}</td><td><span class="badge badge-${u.role}">${rm[u.role]||u.role}</span></td><td>${u.active!==false?'<span style="color:var(--success)">正常</span>':'<span style="color:var(--danger)">禁用</span>'}</td></tr>`).join('');
   }else if(type==='rentals'){
     title.textContent='租借记录 ('+allRentals.length+'条)';
     thead.innerHTML='<tr><th>用户</th><th>物品</th><th>数量</th><th>开始</th><th>结束</th><th>状态</th></tr>';
-    tbody.innerHTML=allRentals.map(r=>`<tr><td>${r.username||r.userId}</td><td><strong>${r.itemName}</strong></td><td>${r.quantity}</td><td>${new Date(r.startDate).toLocaleDateString()}</td><td>${new Date(r.endDate).toLocaleDateString()}</td><td><span class="badge badge-${r.status}">${sm[r.status]||r.status}</span></td></tr>`).join('');
+    tbody.innerHTML=allRentals.map(r=>`<tr><td>${esc(r.username)||r.userId}</td><td><strong>${esc(r.itemName)}</strong></td><td>${r.quantity}</td><td>${new Date(r.startDate).toLocaleDateString()}</td><td>${new Date(r.endDate).toLocaleDateString()}</td><td><span class="badge badge-${r.status}">${sm[r.status]||r.status}</span></td></tr>`).join('');
   }else if(type==='pending'){
     const p=allRentals.filter(r=>r.status==='pending');
     title.textContent='待审核申请 ('+p.length+'条)';
     thead.innerHTML='<tr><th>用户</th><th>物品</th><th>数量</th><th>日期</th><th>用途</th></tr>';
-    tbody.innerHTML=p.length===0?'<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:24px">暂无数据</td></tr>':p.map(r=>`<tr><td>${r.username||r.userId}</td><td><strong>${r.itemName}</strong></td><td>${r.quantity}</td><td style="font-size:13px">${new Date(r.startDate).toLocaleDateString()}-${new Date(r.endDate).toLocaleDateString()}</td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;color:var(--text-secondary)" title="${r.reason||''}">${r.reason||'-'}</td></tr>`).join('');
+    tbody.innerHTML=p.length===0?'<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:24px">暂无数据</td></tr>':p.map(r=>`<tr><td>${esc(r.username)||r.userId}</td><td><strong>${esc(r.itemName)}</strong></td><td>${r.quantity}</td><td style="font-size:13px">${new Date(r.startDate).toLocaleDateString()}-${new Date(r.endDate).toLocaleDateString()}</td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;color:var(--text-secondary)" title="${esc(r.reason||'')}">${esc(r.reason)||'-'}</td></tr>`).join('');
   }else if(type==='status'){
     const list=allRentals.filter(r=>r.status===filter);
     title.textContent=(sm[filter]||filter)+' ('+list.length+'条)';
     thead.innerHTML='<tr><th>用户</th><th>物品</th><th>数量</th><th>开始</th><th>结束</th><th>状态</th></tr>';
-    tbody.innerHTML=list.length===0?'<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:24px">暂无数据</td></tr>':list.map(r=>`<tr><td>${r.username||r.userId}</td><td><strong>${r.itemName}</strong></td><td>${r.quantity}</td><td>${new Date(r.startDate).toLocaleDateString()}</td><td>${new Date(r.endDate).toLocaleDateString()}</td><td><span class="badge badge-${r.status}">${sm[r.status]||r.status}</span></td></tr>`).join('');
+    tbody.innerHTML=list.length===0?'<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:24px">暂无数据</td></tr>':list.map(r=>`<tr><td>${esc(r.username)||r.userId}</td><td><strong>${esc(r.itemName)}</strong></td><td>${r.quantity}</td><td>${new Date(r.startDate).toLocaleDateString()}</td><td>${new Date(r.endDate).toLocaleDateString()}</td><td><span class="badge badge-${r.status}">${sm[r.status]||r.status}</span></td></tr>`).join('');
   }else if(type==='overdue'){
     const now=new Date();const list=allRentals.filter(r=>r.status==='active'&&new Date(r.endDate)<now);
     title.textContent='逾期租借 ('+list.length+'条)';
@@ -1101,21 +1107,25 @@ function showEditItemModal(id){
 }
 function closeEditItemModal(){document.getElementById('edit-item-modal').classList.add('hidden')}
 async function handleEditItem(){
+  const btn=document.querySelector('#edit-item-modal .btn-primary');
+  if(!disableBtn(btn,'保存中...'))return;
   const id=document.getElementById('edit-item-id').value;
   const n=document.getElementById('edit-item-name').value.trim(),c=document.getElementById('edit-item-code').value.trim();
-  if(!n||!c){toast('请填写名称和编码','error');return}
+  if(!n||!c){enableBtn(btn);toast('请填写名称和编码','error');return}
   try{
     await api('PUT','/items/'+id,{name:n,code:c,category:document.getElementById('edit-item-category').value,description:document.getElementById('edit-item-desc').value.trim(),maxRentalDays:parseInt(document.getElementById('edit-item-days').value)||7,maxRentalQty:parseInt(document.getElementById('edit-item-max-qty').value)||5,requireApproval:document.getElementById('edit-item-approval').value==='true',value:parseInt(document.getElementById('edit-item-value').value)||0,image:document.getElementById('edit-item-image').value.trim(),datasheetUrl:document.getElementById('edit-item-datasheet').value.trim()});
     toast('修改成功');closeEditItemModal();allItems=await api('GET','/items');renderItems();renderDashboard();if(adminTab==='items')renderAdminItems()
-  }catch(e){toast(e.message,'error')}
+  }catch(e){enableBtn(btn);toast(e.message,'error')}
 }
 async function handleAddItem(){
+  const btn=document.querySelector('#add-item-modal .btn-primary');
+  if(!disableBtn(btn,'添加中...'))return;
   const n=document.getElementById('new-item-name').value.trim(),c=document.getElementById('new-item-code').value.trim();
-  if(!n||!c){toast('请填写名称和编码','error');return}
+  if(!n||!c){enableBtn(btn);toast('请填写名称和编码','error');return}
   try{
     await api('POST','/items',{name:n,code:c,category:document.getElementById('new-item-category').value,description:document.getElementById('new-item-desc').value.trim(),totalStock:parseInt(document.getElementById('new-item-stock').value)||1,maxRentalDays:parseInt(document.getElementById('new-item-days').value)||7,maxRentalQty:parseInt(document.getElementById('new-item-max-qty').value)||5,requireApproval:document.getElementById('new-item-approval').value==='true',value:parseInt(document.getElementById('new-item-value').value)||0,image:document.getElementById('new-item-image').value.trim(),datasheetUrl:document.getElementById('new-item-datasheet').value.trim()});
     toast('添加成功');closeAddItemModal();allItems=await api('GET','/items');renderItems();renderDashboard();if(adminTab==='items')renderAdminItems()
-  }catch(e){toast(e.message,'error')}
+  }catch(e){enableBtn(btn);toast(e.message,'error')}
 }
 
 let detailItemId=null,dComments=[];
@@ -1130,8 +1140,8 @@ function renderDetail(){
   const colors={电子产品:'#3b82f6',办公用品:'#10b981',运动器材:'#f59e0b',生活用品:'#8b5cf6'};
 
   // Image
-  if(i.image){
-    document.getElementById('detail-image').innerHTML=`<div class="detail-image-wrap"><img src="${i.image}" alt="${i.name}" onerror="this.parentElement.innerHTML='<div class=\\'no-image\\'>暂无图片</div>'"></div>`;
+  if(i.image&&/^https?:\/\//i.test(i.image)){
+    document.getElementById('detail-image').innerHTML=`<div class="detail-image-wrap"><img src="${i.image}" alt="${esc(i.name)}" onerror="this.parentElement.innerHTML='<div class=\\'no-image\\'>暂无图片</div>'"></div>`;
   }else{
     document.getElementById('detail-image').innerHTML=`<div class="detail-image-wrap"><div class="no-image"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:48px;height:48px;opacity:.3;margin-bottom:8px"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div></div>`;
   }
@@ -1147,10 +1157,10 @@ function renderDetail(){
   `;
 
   // Description
-  document.getElementById('detail-desc').innerHTML=i.description?`<p>${i.description}</p>`:'<p style="color:var(--text-muted)">暂无描述</p>';
+  document.getElementById('detail-desc').innerHTML=i.description?`<p>${esc(i.description)}</p>`:'<p style="color:var(--text-muted)">暂无描述</p>';
 
   // Datasheet
-  document.getElementById('detail-datasheet').innerHTML=i.datasheetUrl?`<a href="${i.datasheetUrl}" target="_blank" class="btn btn-outline btn-sm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>查看数据手册</a>`:'';
+  document.getElementById('detail-datasheet').innerHTML=i.datasheetUrl&&/^https?:\/\//i.test(i.datasheetUrl)?`<a href="${i.datasheetUrl}" target="_blank" class="btn btn-outline btn-sm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>查看数据手册</a>`:'';
 
   // Rental form
   const canRent=i.status!=='unavailable'&&i.availableStock>0;
@@ -1188,14 +1198,16 @@ function renderDetail(){
   loadComments();
 }
 async function handleDetailRental(){
+  const btn=document.querySelector('#detail-rental-form .btn-primary');
+  if(!disableBtn(btn,'提交中...'))return;
   const s=document.getElementById('detail-rental-start').value,e=document.getElementById('detail-rental-end').value;
   const q=parseInt(document.getElementById('detail-rental-qty').value),r=document.getElementById('detail-rental-reason').value.trim();
   const today=new Date();today.setHours(0,0,0,0);
-  if(!s||!e){toast('请选择日期','error');return}if(!r){toast('请填写用途','error');return}if(new Date(e)<=new Date(s)){toast('结束日须晚于开始日','error');return}if(new Date(s)<today){toast('开始时间不能早于今天','error');return}
+  if(!s||!e){enableBtn(btn);toast('请选择日期','error');return}if(!r){enableBtn(btn);toast('请填写用途','error');return}if(new Date(e)<=new Date(s)){enableBtn(btn);toast('结束日须晚于开始日','error');return}if(new Date(s)<today){enableBtn(btn);toast('开始时间不能早于今天','error');return}
   try{
     await api('POST','/rentals',{itemId:detailItemId,quantity:q,startDate:s,endDate:e,reason:r});
     toast('申请已提交');goBackFromDetail();allItems=await api('GET','/items');myRentals=await api('GET','/rentals/my');renderItems();renderMyRentals();renderDashboard()
-  }catch(e){toast(e.message,'error')}
+  }catch(e){enableBtn(btn);toast(e.message,'error')}
 }
 async function loadComments(){
   try{dComments=await api('GET','/items/'+detailItemId+'/comments')}catch(e){dComments=[]}
@@ -1219,7 +1231,7 @@ function renderComments(){
           <span class="badge badge-${c.userRole}" style="font-size:10px">${c.userRole==='superadmin'?'超管':c.userRole==='admin'?'管理':'用户'}</span>
           <span style="font-size:12px;color:var(--text-muted)">${new Date(c.createdAt).toLocaleDateString()}</span>
         </div>
-        <p class="comment-content">${c.content}</p>
+        <p class="comment-content">${esc(c.content)}</p>
       </div>
       <div style="display:flex;gap:4px;flex-shrink:0">
         ${isAdmin?`<button class="btn btn-outline btn-sm" onclick="pinComment('${c.id}')" style="font-size:11px;padding:3px 8px">${c.isPinned?'取消':'置顶'}</button>`:''}
@@ -1230,9 +1242,11 @@ function renderComments(){
 }
 async function handleAddComment(){
   if(!currentUser){toast('请先登录','error');return}
+  const btn=document.querySelector('#comment-form .btn-primary');
+  if(!disableBtn(btn,'发送中...'))return;
   const inp=document.getElementById('comment-input');const c=inp.value.trim();
-  if(!c){toast('请输入评论内容','error');return}
-  try{await api('POST','/items/'+detailItemId+'/comments',{content:c});inp.value='';toast('评论成功');await loadComments()}catch(e){toast(e.message,'error')}
+  if(!c){enableBtn(btn);toast('请输入评论内容','error');return}
+  try{await api('POST','/items/'+detailItemId+'/comments',{content:c});inp.value='';toast('评论成功');await loadComments();enableBtn(btn)}catch(e){enableBtn(btn);toast(e.message,'error')}
 }
 async function deleteComment(id){
   if(!confirm('确认删除？'))return;
@@ -1253,13 +1267,15 @@ function showRentalModal(id){
 }
 function closeRentalModal(){document.getElementById('rental-modal').classList.add('hidden')}
 async function handleApplyRental(){
+  const btn=document.querySelector('#rental-modal .btn-primary');
+  if(!disableBtn(btn,'提交中...'))return;
   const s=document.getElementById('rental-start').value,e=document.getElementById('rental-end').value,q=parseInt(document.getElementById('rental-qty').value),r=document.getElementById('rental-reason').value.trim();
   const today=new Date();today.setHours(0,0,0,0);
-  if(!s||!e){toast('请选择日期','error');return}if(!r){toast('请填写用途','error');return}if(new Date(e)<=new Date(s)){toast('结束日须晚于开始日','error');return}if(new Date(s)<today){toast('开始时间不能早于今天','error');return}
+  if(!s||!e){enableBtn(btn);toast('请选择日期','error');return}if(!r){enableBtn(btn);toast('请填写用途','error');return}if(new Date(e)<=new Date(s)){enableBtn(btn);toast('结束日须晚于开始日','error');return}if(new Date(s)<today){enableBtn(btn);toast('开始时间不能早于今天','error');return}
   try{
     await api('POST','/rentals',{itemId:rentalItemId,quantity:q,startDate:s,endDate:e,reason:r});
     toast('申请已提交');closeRentalModal();myRentals=await api('GET','/rentals/my');allItems=await api('GET','/items');renderMyRentals();renderDashboard()
-  }catch(e){toast(e.message,'error')}
+  }catch(e){enableBtn(btn);toast(e.message,'error')}
 }
 	async function changeUserRole(id,role){
   try{await api('PUT','/admin/users/'+id+'/role',{role});toast(role==='admin'?'已升为管理员':'已降为普通用户');allUsers=await api('GET','/admin/users');renderAdminUsers()}catch(e){toast(e.message,'error')}
@@ -1288,6 +1304,8 @@ function renderProfile(){
   document.getElementById('prof-verify-row').style.display='none';
 }
 async function saveProfile(){
+  const btn=document.querySelector('#page-profile .btn-primary');
+  if(!disableBtn(btn,'保存中...'))return;
   const n=document.getElementById('prof-nickname').value.trim(),w=document.getElementById('prof-wechat').value.trim(),ph=document.getElementById('prof-phone').value.trim(),d=document.getElementById('prof-department').value.trim();
   try{
     const r=await api('PUT','/auth/profile',{nickname:n,wechat:w,phone:ph,department:d});
@@ -1295,6 +1313,7 @@ async function saveProfile(){
     document.getElementById('nav-username').textContent=r.user.nickname||r.user.username;
     toast('资料已保存');
   }catch(e){toast(e.message,'error')}
+  enableBtn(btn);
 }
 async function sendProfileVerification(){
   const email=document.getElementById('prof-email').value.trim();

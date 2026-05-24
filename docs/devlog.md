@@ -1,5 +1,39 @@
 # 校园物品租借系统 · 开发日志
 
+## 2026-05-24 — CSP安全头 & 防重复提交 & 租期校验 & 记住我
+
+### 新增
+- **CSP安全头**：添加 Content-Security-Policy、X-Content-Type-Options、X-Frame-Options 响应头，防范 XSS/点击劫持
+- **dotenv 加载**：添加 `require('dotenv').config()`，本地开发环境变量自动加载
+- **防重复提交**：登录/注册/评论/租借/添加物品等表单按钮点击后自动禁用并显示"处理中..."，防止双击重复提交
+- **租期天数校验**：后端 POST /api/rentals 新增租借天数不超过物品 maxRentalDays 的校验
+- **记住我功能**：勾选"记住我"使用 localStorage（持久），不勾选使用 sessionStorage（关闭浏览器即失效）
+
+### 修复
+- **登录按钮选择器**：修复 `.login-card-body .btn` 可能匹配到注册按钮的问题，改用独立 ID `#login-btn`
+
+---
+
+## 2026-05-24 — 邮件修复 & 数据恢复 & 配置迁移
+
+### 修复
+- **JSON 回退模式密码占位符**：`data.json` 中的 `$2a$10$placeholder` 密码无法通过 bcrypt 验证，新增 `fixPlaceholderPasswords()` 在启动时自动替换为真实 bcrypt 哈希
+- **MongoDB 连接丢失**：MONGODB_URI 环境变量被清空，应用回退 JSON 存储（5 users/6 items/2 rentals）。重新添加 URI 后数据恢复（9 users/6 items/20 rentals）
+- **MongoDB 密码更新**：从 `REDACTED` 改为 `REDACTED`（用户重置）
+- **Resend 邮件测试通过**：`api/sms/test` 发送到 `111221212q@gmail.com` 成功
+- **Gmail SMTP 尝试失败**：Railway 海外服务器无法连接 Gmail SMTP（587/465均超时），转回 Resend HTTP API
+- **调试辅助**：健康端点 `/api/health` 新增 `mongoError` 字段，快速定位连库失败原因
+
+### 环境变量调整
+- 删除 `RESEND_API_KEY` → 新增 `EMAIL_HOST/EMAIL_PORT/EMAIL_USER/EMAIL_PASS`（Gmail）→ 删除 Gmail 凭据 → 重新添加 `RESEND_API_KEY`
+- 最终使用中转：**Resend HTTP API**（因 Railway 封锁 SMTP 端口）
+
+### 待办
+- 域名 `gggffxu.xyz` 实名审核中，通过后配置 Resend 域名验证 → 可向任意邮箱发信
+- 可选：`rental.gggffxu.xyz` 自定义域名
+
+---
+
 ## 2026-05-23 — 超级管理员权限区分
 
 - 新增 `superadmin` 中间件，`PUT /api/admin/users/:id/role` 和 `/status` 两个端点仅 superadmin 可调用

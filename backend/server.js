@@ -3,9 +3,10 @@ const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
-const email = require('./services/sms');
+const emailService = require('./services/sms');
 const fs = require('fs');
 const path = require('path');
+require('dotenv').config();
 
 let mongoose, User, Item, Rental, Comment;
 let useMongo = false;
@@ -150,6 +151,12 @@ const ALLOWED_ORIGINS = [
 ];
 app.use(cors({ origin: (origin, cb) => cb(null, ALLOWED_ORIGINS.includes(origin) || !origin) }));
 app.use(express.json());
+app.use((_, res, next) => {
+  res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' https: http:; connect-src 'self' https://api.resend.com; frame-src 'none'; object-src 'none'");
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  next();
+});
 app.use(express.static(path.join(__dirname, '../frontend/public'), { index: false }));
 
 app.get('/', (_, res) => res.sendFile(path.join(__dirname, '../frontend/public/app.html')));
@@ -218,14 +225,14 @@ app.post('/api/auth/register', async (req, res) => {
       if (emailExists) return res.status(400).json({ error: '邮箱已被注册' });
       const hashed = await bcrypt.hash(password, 10);
       const user = await new User({ username, email, password: hashed, role: 'user', active: true, nickname: nickname || '', wechat: wechat || '', phone: phone || '', firstRental: true }).save();
-      const token = jwt.sign({ userId: user._id.toString() }, process.env.JWT_SECRET);
+      const token = jwt.sign({ userId: user._id.toString() }, process.env.JWT_SECRET, { expiresIn: '7d' });
       // Send verification email
       try {
         const code = String(Math.floor(100000 + Math.random() * 900000));
         user.emailVerificationCode = code;
         await user.save();
-        if (email.isConfigured()) {
-          email.sendEmail(email, '邮箱验证', `您好！您注册租借系统的验证码为：${code}\n\n验证码有效期为10分钟，请勿泄露。\n——租借系统`);
+        if (emailService.isConfigured()) {
+          emailService.sendEmail(email, '邮箱验证', `您好！您注册租借系统的验证码为：${code}\n\n验证码有效期为10分钟，请勿泄露。\n——租借系统`);
         }
       } catch (_) {}
       return res.status(201).json({ message: '注册成功', token, user: { id: user._id.toString(), username: user.username, email: user.email, role: user.role, nickname: user.nickname || '', wechat: user.wechat || '', phone: user.phone || '', department: user.department || '' } });
@@ -235,7 +242,7 @@ app.post('/api/auth/register', async (req, res) => {
       const hashed = await bcrypt.hash(password, 10);
       const newUser = { id: String(nextUserId++), username, email, password: hashed, role: 'user', active: true, nickname: nickname || '', wechat: wechat || '', phone: phone || '', firstRental: true, emailVerified: false };
       users.push(newUser); saveData();
-      const token = jwt.sign({ userId: newUser.id }, process.env.JWT_SECRET);
+      const token = jwt.sign({ userId: newUser.id }, process.env.JWT_SECRET, { expiresIn: '7d' });
       return res.status(201).json({ message: '注册成功', token, user: { id: newUser.id, username: newUser.username, email: newUser.email, role: newUser.role, nickname: newUser.nickname, wechat: newUser.wechat, phone: newUser.phone, department: newUser.department } });
     }
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -252,7 +259,7 @@ app.post('/api/auth/login', async (req, res) => {
       if (!user.active) return res.status(401).json({ error: '账号已被禁用' });
       const match = await bcrypt.compare(password, user.password);
       if (!match) return res.status(401).json({ error: '学号或密码错误' });
-      const token = jwt.sign({ userId: user._id.toString() }, process.env.JWT_SECRET);
+      const token = jwt.sign({ userId: user._id.toString() }, process.env.JWT_SECRET, { expiresIn: '7d' });
       return res.json({ message: '登录成功', token, user: { id: user._id.toString(), username: user.username, email: user.email, role: user.role, nickname: user.nickname || '', wechat: user.wechat || '', phone: user.phone || '', department: user.department || '' } });
     } else {
       const user = users.find(u => u.username === username);
@@ -260,7 +267,7 @@ app.post('/api/auth/login', async (req, res) => {
       if (!user.active) return res.status(401).json({ error: '账号已被禁用' });
       const match = await bcrypt.compare(password, user.password);
       if (!match) return res.status(401).json({ error: '学号或密码错误' });
-      const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET);
+      const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '7d' });
       return res.json({ message: '登录成功', token, user: { id: user.id, username: user.username, email: user.email, role: user.role, nickname: user.nickname || '', wechat: user.wechat || '', phone: user.phone || '', department: user.department || '' } });
     }
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -313,14 +320,14 @@ app.put('/api/auth/profile', auth, async (req, res) => {
 app.post('/api/auth/send-verification', auth, async (req, res) => {
   try {
     if (!useMongo) return res.status(400).json({ error: '邮箱验证需要MongoDB' });
-    if (!email.isConfigured()) return res.status(400).json({ error: '邮件服务未配置' });
+    if (!emailService.isConfigured()) return res.status(400).json({ error: '邮件服务未配置' });
     const user = await User.findById(req.user._id);
     if (!user) return res.status(404).json({ error: '用户不存在' });
     if (!user.email) return res.status(400).json({ error: '请先设置邮箱' });
     const code = String(Math.floor(100000 + Math.random() * 900000));
     user.emailVerificationCode = code;
     await user.save();
-    const result = await email.sendEmail(user.email, '邮箱验证', `您好！您的邮箱验证码为：${code}\n\n验证码有效期为10分钟，请勿泄露。\n——租借系统`);
+    const result = await emailService.sendEmail(user.email, '邮箱验证', `您好！您的邮箱验证码为：${code}\n\n验证码有效期为10分钟，请勿泄露。\n——租借系统`);
     if (!result.success) return res.status(500).json({ error: '验证码发送失败: ' + result.error });
     res.json({ message: '验证码已发送到您的邮箱' });
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -425,22 +432,24 @@ app.delete('/api/items/:id', auth, admin, async (req, res) => {
 app.put('/api/items/:id/stock', auth, admin, async (req, res) => {
   try {
     const { action, quantity } = req.body;
+    const q = parseInt(quantity);
+    if (!Number.isInteger(q) || q < 1) return res.status(400).json({ error: '数量必须是正整数' });
     if (useMongo) {
       const item = await Item.findById(req.params.id);
       if (!item) return res.status(404).json({ error: '物品不存在' });
-      if (action === 'add') { item.stock += quantity; item.available += quantity; }
-      else if (action === 'remove') { if (item.available < quantity) return res.status(400).json({ error: '可出库库存不足' }); item.available -= quantity; }
+      if (action === 'add') { item.stock += q; item.available += q; }
+      else if (action === 'remove') { if (item.available < q) return res.status(400).json({ error: '可出库库存不足' }); item.available -= q; }
       else return res.status(400).json({ error: '无效的操作类型' });
       await item.save();
-      return res.json({ message: action === 'add' ? `入库成功，增加 ${quantity} 件` : `出库成功，减少 ${quantity} 件`, item: sItemM(item) });
+      return res.json({ message: action === 'add' ? `入库成功，增加 ${q} 件` : `出库成功，减少 ${q} 件`, item: sItemM(item) });
     } else {
       const item = items.find(i => i.id === req.params.id);
       if (!item) return res.status(404).json({ error: '物品不存在' });
-      if (action === 'add') { item.totalStock += quantity; item.availableStock += quantity; }
-      else if (action === 'remove') { if (item.availableStock < quantity) return res.status(400).json({ error: '可出库库存不足' }); item.availableStock -= quantity; }
+      if (action === 'add') { item.totalStock += q; item.availableStock += q; }
+      else if (action === 'remove') { if (item.availableStock < q) return res.status(400).json({ error: '可出库库存不足' }); item.availableStock -= q; }
       else return res.status(400).json({ error: '无效的操作类型' });
       saveData();
-      return res.json({ message: action === 'add' ? `入库成功，增加 ${quantity} 件` : `出库成功，减少 ${quantity} 件`, item });
+      return res.json({ message: action === 'add' ? `入库成功，增加 ${q} 件` : `出库成功，减少 ${q} 件`, item });
     }
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -457,6 +466,8 @@ app.post('/api/rentals', auth, async (req, res) => {
       if (item.available < quantity) return res.status(400).json({ error: '库存不足' });
       const maxQty = item.maxRentalQty || 5;
       if (quantity > maxQty) return res.status(400).json({ error: `该物品单人限租 ${maxQty} 件` });
+      const days = Math.ceil((new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24));
+      if (days > item.maxRentalDays) return res.status(400).json({ error: `租借天数不能超过 ${item.maxRentalDays} 天` });
       // Anti-duplicate: reject if same user+item pending within 30s
       const recent = await Rental.findOne({ user: req.user._id, item: item._id, status: 'pending', createdAt: { $gte: new Date(Date.now() - 30000) } });
       if (recent) return res.status(400).json({ error: '请勿重复提交，您已有该物品的待审核申请' });
@@ -469,6 +480,8 @@ app.post('/api/rentals', auth, async (req, res) => {
       if (item.availableStock < quantity) return res.status(400).json({ error: '库存不足' });
       const maxQty = item.maxRentalQty || 5;
       if (quantity > maxQty) return res.status(400).json({ error: `该物品单人限租 ${maxQty} 件` });
+      const jsonDays = Math.ceil((new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24));
+      if (jsonDays > item.maxRentalDays) return res.status(400).json({ error: `租借天数不能超过 ${item.maxRentalDays} 天` });
       const now = Date.now();
       const recent = rentals.find(r => r.userId === req.user.id && r.itemId === itemId && r.status === 'pending' && (now - new Date(r.createdAt).getTime()) < 30000);
       if (recent) return res.status(400).json({ error: '请勿重复提交，您已有该物品的待审核申请' });
@@ -598,8 +611,8 @@ app.post('/api/rentals/:id/urge', auth, admin, async (req, res) => {
       if (!rental) return res.status(404).json({ error: '租借记录不存在' });
       let emailResult = null;
       const userEmail = rental.user?.email;
-      if (email.isConfigured() && userEmail) {
-        emailResult = await email.sendEmail(
+      if (emailService.isConfigured() && userEmail) {
+        emailResult = await emailService.sendEmail(
           userEmail,
           '租借归还提醒',
           `${rental.user.username}同学，您好！\n\n您租借的「${rental.item?.name || '物品'}」已逾期，请尽快联系管理员线下归还。\n\n——租借系统自动提醒`
@@ -616,13 +629,13 @@ app.post('/api/rentals/:id/urge', auth, admin, async (req, res) => {
 
 // ── Email Config / Test ─────────────────────────────────
 app.get('/api/sms/status', auth, admin, async (req, res) => {
-  res.json({ configured: email.isConfigured() });
+  res.json({ configured: emailService.isConfigured() });
 });
 app.post('/api/sms/test', auth, admin, async (req, res) => {
-  if (!email.isConfigured()) return res.status(400).json({ error: '邮箱未配置，请在环境变量中设置 EMAIL_USER 和 EMAIL_PASS（QQ邮箱需用授权码）' });
+  if (!emailService.isConfigured()) return res.status(400).json({ error: '邮箱未配置，请在环境变量中设置 EMAIL_USER 和 EMAIL_PASS（QQ邮箱需用授权码）' });
   const { to } = req.body;
   if (!to) return res.status(400).json({ error: '请提供收件邮箱' });
-  const result = await email.sendEmail(to, '租借系统测试', '这是一封来自租借系统的测试邮件，配置成功！');
+  const result = await emailService.sendEmail(to, '租借系统测试', '这是一封来自租借系统的测试邮件，配置成功！');
   res.json({ success: result.success, message: result.success ? '邮件发送成功' : '发送失败: '+result.error });
 });
 
@@ -824,9 +837,9 @@ app.get('/api/health', async (_, res) => {
 
   if (useMongo) {
     const [uc, ic, rc] = await Promise.all([User.countDocuments(), Item.countDocuments(), Rental.countDocuments()]);
-    return res.json({ status: 'ok', timestamp: new Date(), users: uc, items: ic, rentals: rc, emailConfigured: email.isConfigured(), canReachInternet });
+    return res.json({ status: 'ok', timestamp: new Date(), users: uc, items: ic, rentals: rc, emailConfigured: emailService.isConfigured(), canReachInternet });
   }
-  res.json({ status: 'ok', timestamp: new Date(), users: users.length, items: items.length, rentals: rentals.length, emailConfigured: email.isConfigured(), canReachInternet, mongoError: mongoError || null });
+  res.json({ status: 'ok', timestamp: new Date(), users: users.length, items: items.length, rentals: rentals.length, emailConfigured: emailService.isConfigured(), canReachInternet, mongoError: mongoError || null });
 });
 
 // ── Start ────────────────────────────────────────────────
