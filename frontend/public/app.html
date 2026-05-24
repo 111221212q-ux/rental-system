@@ -155,6 +155,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .stat-card.green{background:linear-gradient(135deg,#10b981,#047857)}
 .stat-card.purple{background:linear-gradient(135deg,#8b5cf6,#6d28d9)}
 .stat-card.orange{background:linear-gradient(135deg,#f59e0b,#b45309)}
+.stat-card.red{background:linear-gradient(135deg,#ef4444,#b91c1c)}
 .stat-card::after{content:'';position:absolute;top:-50%;right:-30%;width:200px;height:200px;border-radius:50%;background:rgba(255,255,255,.08)}
 .stat-icon{width:48px;height:48px;border-radius:10px;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;flex-shrink:0;backdrop-filter:blur(4px)}
 .stat-icon svg{width:24px;height:24px}
@@ -506,6 +507,7 @@ tr:hover td{background:linear-gradient(90deg,rgba(99,102,241,.03),transparent)}
             <div class="stat-card green" onclick="showStatsDetail('rentals')" style="cursor:pointer"><div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div><div class="stat-content"><div class="stat-num" id="admin-stat-rentals">-</div><div class="stat-label">总租借</div></div></div>
             <div class="stat-card purple" onclick="showStatsDetail('users')" style="cursor:pointer"><div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div><div class="stat-content"><div class="stat-num" id="admin-stat-users">-</div><div class="stat-label">注册用户</div></div></div>
             <div class="stat-card orange" onclick="showStatsDetail('pending')" style="cursor:pointer"><div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div class="stat-content"><div class="stat-num" id="admin-stat-pending">-</div><div class="stat-label">待审核</div></div></div>
+            <div class="stat-card red" onclick="showStatsDetail('overdue')" style="cursor:pointer"><div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div class="stat-content"><div class="stat-num" id="admin-stat-overdue">-</div><div class="stat-label">逾期</div></div></div>
           </div>
           <div class="card" style="margin-bottom:24px"><div class="card-header"><div><div class="card-title">租借状态分布</div></div></div>
             <div class="table-wrap"><table><thead><tr><th>状态</th><th>数量</th></tr></thead><tbody id="stats-breakdown"></tbody></table></div>
@@ -851,12 +853,11 @@ function renderMyRentals(){
   t.innerHTML=myRentals.map(r=>{
     const isOverdue=r.status==='active'&&new Date(r.endDate)<now;
     const status=isOverdue?'overdue':r.status;
-    const btn=isOverdue?`<button class="btn btn-sm btn-warning" onclick="urgeRental('${r.id}')" style="font-size:12px">催还</button>`:'-';
     return `<tr ${isOverdue?'style="background:#fef2f2"':''}>
       <td><strong>${r.itemName}</strong></td><td>${r.quantity}</td>
       <td style="font-size:13px">${new Date(r.startDate).toLocaleDateString()}</td><td style="font-size:13px">${new Date(r.endDate).toLocaleDateString()}</td>
       <td><span class="badge badge-${status}">${sm[status]||r.status}</span></td>
-      <td style="font-size:13px;color:var(--text-muted)">${isOverdue?btn:st[r.status]||'-'}</td>
+      <td style="font-size:13px;color:var(--text-muted)">${isOverdue?'已逾期，请联系管理员归还':st[r.status]||'-'}</td>
     </tr>`;
   }).join('');
 }
@@ -983,6 +984,8 @@ function renderAdminStats(){
   document.getElementById('admin-stat-rentals').textContent=allRentals.length;
   document.getElementById('admin-stat-users').textContent=allUsers.length;
   document.getElementById('admin-stat-pending').textContent=allRentals.filter(r=>r.status==='pending').length;
+  const now=new Date();const overdue=allRentals.filter(r=>r.status==='active'&&new Date(r.endDate)<now);
+  document.getElementById('admin-stat-overdue').textContent=overdue.length;
   const b={};allRentals.forEach(r=>{b[r.status]=(b[r.status]||0)+1});
   const t=document.getElementById('stats-breakdown'),sm={pending:'待审核',approved:'已通过',rejected:'已拒绝',active:'租借中',returned:'已归还',overdue:'逾期',cancelled:'已取消'};
   if(Object.keys(b).length===0){t.innerHTML='<tr><td colspan="2" style="text-align:center;color:var(--text-muted);padding:24px">暂无数据</td></tr>';return}
@@ -1017,6 +1020,14 @@ function showStatsDetail(type,filter){
     title.textContent=(sm[filter]||filter)+' ('+list.length+'条)';
     thead.innerHTML='<tr><th>用户</th><th>物品</th><th>数量</th><th>开始</th><th>结束</th><th>状态</th></tr>';
     tbody.innerHTML=list.length===0?'<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:24px">暂无数据</td></tr>':list.map(r=>`<tr><td>${r.username||r.userId}</td><td><strong>${r.itemName}</strong></td><td>${r.quantity}</td><td>${new Date(r.startDate).toLocaleDateString()}</td><td>${new Date(r.endDate).toLocaleDateString()}</td><td><span class="badge badge-${r.status}">${sm[r.status]||r.status}</span></td></tr>`).join('');
+  }else if(type==='overdue'){
+    const now=new Date();const list=allRentals.filter(r=>r.status==='active'&&new Date(r.endDate)<now);
+    title.textContent='逾期租借 ('+list.length+'条)';
+    thead.innerHTML='<tr><th>用户</th><th>物品</th><th>数量</th><th>结束日期</th><th>逾期天数</th><th>操作</th></tr>';
+    tbody.innerHTML=list.length===0?'<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:24px">暂无逾期</td></tr>':list.map(r=>{
+      const days=Math.floor((now-new Date(r.endDate))/(86400000));
+      return `<tr style="background:#fef2f2"><td>${r.username||r.userId}</td><td><strong>${r.itemName}</strong></td><td>${r.quantity}</td><td>${new Date(r.endDate).toLocaleDateString()}</td><td><span style="color:#dc2626;font-weight:600">${days}天</span></td><td><button class="btn btn-sm btn-warning" onclick="urgeRental('${r.id}')">催还</button></td></tr>`;
+    }).join('');
   }
 }
 
@@ -1205,15 +1216,14 @@ async function handleApplyRental(){
     toast('申请已提交');closeRentalModal();myRentals=await api('GET','/rentals/my');allItems=await api('GET','/items');renderMyRentals();renderDashboard()
   }catch(e){toast(e.message,'error')}
 }
-	async function urgeRental(id){
-	  try{await api('POST','/rentals/'+id+'/urge');toast('已通知管理员催还')}catch(e){toast(e.message,'error')}
-	}
-
 	async function changeUserRole(id,role){
   try{await api('PUT','/admin/users/'+id+'/role',{role});toast(role==='admin'?'已升为管理员':'已降为普通用户');allUsers=await api('GET','/admin/users');renderAdminUsers()}catch(e){toast(e.message,'error')}
 }
 async function toggleUserStatus(id,active){
   try{await api('PUT','/admin/users/'+id+'/status',{active});toast(active?'已启用':'已禁用');allUsers=await api('GET','/admin/users');renderAdminUsers()}catch(e){toast(e.message,'error')}
+}
+async function urgeRental(id){
+  try{const r=await api('POST','/rentals/'+id+'/urge');toast(r.message||'已通知用户归还')}catch(e){toast(e.message,'error')}
 }
 
 async function init(){
