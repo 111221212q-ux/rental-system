@@ -800,9 +800,9 @@ app.get('/api/notifications', auth, async (req, res) => {
 app.get('/api/health', async (_, res) => {
   if (useMongo) {
     const [uc, ic, rc] = await Promise.all([User.countDocuments(), Item.countDocuments(), Rental.countDocuments()]);
-    return res.json({ status: 'ok', timestamp: new Date(), users: uc, items: ic, rentals: rc });
+    return res.json({ status: 'ok', timestamp: new Date(), users: uc, items: ic, rentals: rc, emailConfigured: email.isConfigured() });
   }
-  res.json({ status: 'ok', timestamp: new Date(), users: users.length, items: items.length, rentals: rentals.length });
+  res.json({ status: 'ok', timestamp: new Date(), users: users.length, items: items.length, rentals: rentals.length, emailConfigured: email.isConfigured() });
 });
 
 // ── Start ────────────────────────────────────────────────
