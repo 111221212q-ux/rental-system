@@ -126,6 +126,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .card-title{font-size:15px;font-weight:600;color:var(--text)}
 .card-desc{font-size:13px;color:var(--text-muted);margin-top:2px}
 .detail-hero{display:grid;grid-template-columns:1.2fr 1fr;gap:28px;margin-bottom:28px;align-items:start}
+.detail-hero #detail-image{max-width:480px}
 .detail-image-wrap{border-radius:16px;overflow:hidden;background:var(--bg-muted)}
 .detail-image-wrap img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block}
 .detail-image-wrap .no-image{display:flex;align-items:center;justify-content:center;aspect-ratio:4/3;color:var(--text-muted);font-size:14px}
@@ -215,6 +216,7 @@ tr:hover td{background:linear-gradient(90deg,rgba(99,102,241,.03),transparent)}
 .item-card .item-meta{display:flex;gap:16px;margin-bottom:12px;font-size:13px;color:var(--text-secondary)}
 .item-card .item-meta span{display:flex;align-items:center;gap:4px}
 .item-card .item-actions{display:flex;gap:8px;padding-top:12px;border-top:1px solid #f1f5f9}
+.item-card-image{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:8px;margin-bottom:10px;background:var(--bg-muted)}
 
 /* Page Header */
 .page-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;flex-wrap:wrap;gap:12px}
@@ -870,7 +872,7 @@ function itemCard(item){
   const canRent=item.status!=='unavailable'&&item.availableStock>0,cc={'电子产品':'#3b82f6','办公用品':'#10b981','运动器材':'#f59e0b','生活用品':'#8b5cf6'},co=cc[item.category]||'#6b7280';
   const stxt={available:'可租借',low_stock:'库存不足',unavailable:'不可租借'};
   return `<div class="card card-hover item-card">
-    ${item.image?`<div style="width:100%;height:140px;overflow:hidden;border-radius:8px;margin-bottom:10px"><img src="${escUrl(item.image)}" alt="${esc(item.name)}" style="width:100%;height:100%;object-fit:cover" onerror="this.parentElement.style.display='none'"></div>`:''}
+    ${item.image?`<img class="item-card-image" src="${escUrl(item.image)}" alt="${esc(item.name)}" onerror="this.parentElement.innerHTML='<div style=\\'aspect-ratio:4/3;display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:13px;border-radius:8px;background:var(--bg-muted);margin-bottom:10px\\'>图片加载失败</div>'">`:''}
     <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:8px">
       <div style="flex:1"><div class="item-name">${esc(item.name)}</div><div class="item-code">${esc(item.code)}</div></div>
       <span class="badge badge-${item.status}">${stxt[item.status]||item.status}</span>
