@@ -175,6 +175,7 @@ select.input{-webkit-appearance:none;appearance:none;background-image:url("data:
 .badge{display:inline-flex;align-items:center;padding:2px 10px;border-radius:100px;font-size:12px;font-weight:500}
 .badge-pending{background:#fef3c7;color:#92400e}
 .badge-approved,.badge-active{background:#d1fae5;color:#065f46}
+.badge-info{background:#dbeafe;color:#1e40af}
 .badge-rejected{background:#fee2e2;color:#991b1b}
 .badge-returned{background:#e0e7ff;color:#4338ca}
 .badge-overdue{background:#fce7f3;color:#9d174d}
@@ -438,6 +439,8 @@ tr:hover td{background:linear-gradient(90deg,rgba(99,102,241,.03),transparent)}
         <div class="page-header"><h2>管理后台</h2></div>
         <div class="tabs">
           <button class="tab-btn active" onclick="switchAdminTab('approvals',this)">待审核 <span class="badge badge-pending" id="approvals-badge">0</span></button>
+          <button class="tab-btn" onclick="switchAdminTab('pickup',this)">待领取 <span class="badge badge-info" id="pickup-badge">0</span></button>
+          <button class="tab-btn" onclick="switchAdminTab('active',this)">租借中</button>
           <button class="tab-btn" onclick="switchAdminTab('items',this)">物品管理</button>
           <button class="tab-btn" onclick="switchAdminTab('users',this)">用户管理</button>
           <button class="tab-btn" onclick="switchAdminTab('stats',this)">数据统计</button>
@@ -448,6 +451,22 @@ tr:hover td{background:linear-gradient(90deg,rgba(99,102,241,.03),transparent)}
               <table><thead><tr><th>申请人</th><th>物品</th><th>数量</th><th>日期</th><th>用途</th><th>操作</th></tr></thead><tbody id="approvals-table"></tbody></table>
             </div>
             <div id="approvals-empty" class="empty-state hidden"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg><p>暂无待审核</p></div>
+          </div>
+        </div>
+        <div id="admin-pickup" class="admin-tab hidden">
+          <div class="card" style="padding:0">
+            <div class="table-wrap" style="border:none">
+              <table><thead><tr><th>申请人</th><th>物品</th><th>数量</th><th>日期</th><th>操作</th></tr></thead><tbody id="pickup-table"></tbody></table>
+            </div>
+            <div id="pickup-empty" class="empty-state hidden"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg><p>暂无待领取</p></div>
+          </div>
+        </div>
+        <div id="admin-active" class="admin-tab hidden">
+          <div class="card" style="padding:0">
+            <div class="table-wrap" style="border:none">
+              <table><thead><tr><th>借用人</th><th>物品</th><th>数量</th><th>租期</th><th>操作</th></tr></thead><tbody id="active-table"></tbody></table>
+            </div>
+            <div id="active-empty" class="empty-state hidden"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><p>暂无租借中的物品</p></div>
           </div>
         </div>
         <div id="admin-items" class="admin-tab hidden">
@@ -821,12 +840,13 @@ function renderMyRentals(){
   const t=document.getElementById('my-rentals-table'),e=document.getElementById('my-rentals-empty');
   if(myRentals.length===0){t.innerHTML='';e.classList.remove('hidden');return}
   e.classList.add('hidden');
-  const sm={pending:'待审核',approved:'已通过',rejected:'已拒绝',active:'租借中',returned:'已归还',overdue:'逾期',cancelled:'已取消'};
+  const sm={pending:'待审核',approved:'已通过（待线下领取）',rejected:'已拒绝',active:'租借中',returned:'已归还',overdue:'逾期',cancelled:'已取消'};
+  const st={pending:'等待管理员审核',approved:'请联系管理员线下领取物品',rejected:'申请未通过',active:'请在租期内联系管理员归还',returned:'',overdue:'已逾期，请尽快联系管理员',cancelled:'已取消'};
   t.innerHTML=myRentals.map(r=>`<tr>
     <td><strong>${r.itemName}</strong></td><td>${r.quantity}</td>
     <td>${new Date(r.startDate).toLocaleDateString()}</td><td>${new Date(r.endDate).toLocaleDateString()}</td>
     <td><span class="badge badge-${r.status}">${sm[r.status]||r.status}</span></td>
-    <td>${r.status==='active'?`<button class="btn btn-success btn-sm" onclick="returnItem('${r.id}')">归还</button>`:'-'}</td>
+    <td style="font-size:13px;color:var(--text-muted)">${st[r.status]||'-'}</td>
   </tr>`).join('');
 }
 
@@ -838,6 +858,8 @@ function switchAdminTab(tab,btn){
   document.querySelectorAll('.admin-tab').forEach(t=>t.classList.add('hidden'));
   document.getElementById('admin-'+tab).classList.remove('hidden');
   if(tab==='approvals')renderAdminApprovals();
+  else if(tab==='pickup')renderAdminPickup();
+  else if(tab==='active')renderAdminActive();
   else if(tab==='items')renderAdminItems();
   else if(tab==='users')renderAdminUsers();
   else if(tab==='stats')renderAdminStats();
@@ -866,6 +888,36 @@ async function approveRental(id){
 async function rejectRental(id){
   const r=prompt('拒绝原因：');
   try{await api('PUT','/rentals/'+id+'/reject',{status:'rejected',adminNotes:r||'未通过'});toast('已拒绝');allRentals=await api('GET','/rentals');renderAdminApprovals()}catch(e){toast(e.message,'error')}
+}
+
+function renderAdminPickup(){
+  const p=allRentals.filter(r=>r.status==='approved'),t=document.getElementById('pickup-table'),e=document.getElementById('pickup-empty');
+  document.getElementById('pickup-badge').textContent=p.length;
+  if(p.length===0){t.innerHTML='';e.classList.remove('hidden');return}
+  e.classList.add('hidden');
+  t.innerHTML=p.map(r=>`<tr>
+    <td>${r.username||r.userId}</td><td><strong>${r.itemName}</strong></td><td>${r.quantity}</td>
+    <td style="font-size:13px">${new Date(r.startDate).toLocaleDateString()}-${new Date(r.endDate).toLocaleDateString()}</td>
+    <td><button class="btn btn-primary btn-sm" onclick="pickupRental('${r.id}')">确认领取</button></td>
+  </tr>`).join('');
+}
+async function pickupRental(id){
+  if(!confirm('确认该用户已领取物品？'))return;
+  try{await api('PUT','/rentals/'+id+'/pickup');toast('已确认领取');allRentals=await api('GET','/rentals');renderAdminPickup();loadData()}catch(e){toast(e.message,'error')}
+}
+function renderAdminActive(){
+  const a=allRentals.filter(r=>r.status==='active'),t=document.getElementById('active-table'),e=document.getElementById('active-empty');
+  if(a.length===0){t.innerHTML='';e.classList.remove('hidden');return}
+  e.classList.add('hidden');
+  t.innerHTML=a.map(r=>`<tr>
+    <td>${r.username||r.userId}</td><td><strong>${r.itemName}</strong></td><td>${r.quantity}</td>
+    <td style="font-size:13px">${new Date(r.startDate).toLocaleDateString()}-${new Date(r.endDate).toLocaleDateString()}</td>
+    <td><button class="btn btn-warning btn-sm" onclick="returnRental('${r.id}')">确认归还</button></td>
+  </tr>`).join('');
+}
+async function returnRental(id){
+  if(!confirm('确认已收到归还物品？'))return;
+  try{await api('PUT','/rentals/'+id+'/return');toast('归还成功');allRentals=await api('GET','/rentals');renderAdminActive();loadData()}catch(e){toast(e.message,'error')}
 }
 
 function renderAdminItems(){
@@ -1142,11 +1194,6 @@ async function changeUserRole(id,role){
 }
 async function toggleUserStatus(id,active){
   try{await api('PUT','/admin/users/'+id+'/status',{active});toast(active?'已启用':'已禁用');allUsers=await api('GET','/admin/users');renderAdminUsers()}catch(e){toast(e.message,'error')}
-}
-
-async function returnItem(id){
-  if(!confirm('确认归还？'))return;
-  try{await api('PUT','/rentals/'+id+'/return');toast('归还成功');myRentals=await api('GET','/rentals/my');renderMyRentals();allItems=await api('GET','/items');renderDashboard()}catch(e){toast(e.message,'error')}
 }
 
 async function init(){

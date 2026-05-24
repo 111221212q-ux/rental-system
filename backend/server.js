@@ -360,9 +360,8 @@ app.post('/api/rentals', auth, async (req, res) => {
       const recent = await Rental.findOne({ user: req.user._id, item: item._id, status: 'pending', createdAt: { $gte: new Date(Date.now() - 30000) } });
       if (recent) return res.status(400).json({ error: '请勿重复提交，您已有该物品的待审核申请' });
       const rental = await new Rental({ item: item._id, user: req.user._id, quantity, startDate: new Date(startDate), endDate: new Date(endDate), status: item.requiresApproval === false ? 'approved' : 'pending', notes: reason }).save();
-      if (item.requiresApproval === false) { item.available -= quantity; await item.save(); }
       const result = await sRentalM(rental);
-      return res.status(201).json({ message: item.requiresApproval === false ? '租借成功' : '申请提交成功', rental: result });
+      return res.status(201).json({ message: item.requiresApproval === false ? '申请已提交，请等待管理员确认领取' : '申请提交成功', rental: result });
     } else {
       const item = items.find(i => i.id === itemId);
       if (!item) return res.status(404).json({ error: '物品不存在' });
@@ -409,9 +408,6 @@ app.put('/api/rentals/:id/approve', auth, admin, async (req, res) => {
       const rental = await Rental.findById(req.params.id);
       if (!rental) return res.status(404).json({ error: '申请不存在' });
       if (status === 'approved') {
-        const item = await Item.findById(rental.item);
-        if (!item || item.available < rental.quantity) return res.status(400).json({ error: '库存不足，无法批准' });
-        item.available -= rental.quantity; await item.save();
         rental.status = 'approved'; rental.approvedBy = req.user._id; rental.approvedAt = new Date(); rental.notes = adminNotes || rental.notes;
       } else if (status === 'rejected') { rental.status = 'rejected'; rental.notes = adminNotes; }
       await rental.save();
@@ -419,11 +415,8 @@ app.put('/api/rentals/:id/approve', auth, admin, async (req, res) => {
     } else {
       const rental = rentals.find(r => r.id === req.params.id);
       if (!rental) return res.status(404).json({ error: '申请不存在' });
-      if (status === 'approved') {
-        const item = items.find(i => i.id === rental.itemId);
-        if (item && item.availableStock >= rental.quantity) { item.availableStock -= rental.quantity; rental.status = 'approved'; rental.approvedBy = req.user.id; rental.approvedAt = new Date(); rental.adminNotes = adminNotes; }
-        else return res.status(400).json({ error: '库存不足，无法批准' });
-      } else if (status === 'rejected') { rental.status = 'rejected'; rental.adminNotes = adminNotes; }
+      if (status === 'approved') { rental.status = 'approved'; rental.approvedBy = req.user.id; rental.approvedAt = new Date(); rental.adminNotes = adminNotes; }
+      else if (status === 'rejected') { rental.status = 'rejected'; rental.adminNotes = adminNotes; }
       saveData();
       return res.json({ message: `申请已${status === 'approved' ? '批准' : '拒绝'}`, rental });
     }
@@ -447,14 +440,37 @@ app.put('/api/rentals/:id/reject', auth, admin, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.put('/api/rentals/:id/return', auth, async (req, res) => {
+app.put('/api/rentals/:id/pickup', auth, admin, async (req, res) => {
   try {
     if (useMongo) {
       const rental = await Rental.findById(req.params.id);
       if (!rental) return res.status(404).json({ error: '租借记录不存在' });
-      if (rental.user.toString() !== req.user._id.toString() && req.user.role !== 'admin' && req.user.role !== 'superadmin')
-        return res.status(403).json({ error: '无权操作此租借记录' });
-      if (rental.status !== 'approved' && rental.status !== 'active') return res.status(400).json({ error: '该记录无需归还' });
+      if (rental.status !== 'approved') return res.status(400).json({ error: '该记录无需领取' });
+      const item = await Item.findById(rental.item);
+      if (!item || item.available < rental.quantity) return res.status(400).json({ error: '库存不足' });
+      item.available -= rental.quantity; await item.save();
+      rental.status = 'active'; rental.pickedAt = new Date();
+      await rental.save();
+      return res.json({ message: '已确认领取', rental: await sRentalM(rental) });
+    } else {
+      const rental = rentals.find(r => r.id === req.params.id);
+      if (!rental) return res.status(404).json({ error: '租借记录不存在' });
+      if (rental.status !== 'approved') return res.status(400).json({ error: '该记录无需领取' });
+      const item = items.find(i => i.id === rental.itemId);
+      if (!item || item.availableStock < rental.quantity) return res.status(400).json({ error: '库存不足' });
+      item.availableStock -= rental.quantity; rental.status = 'active'; rental.pickedAt = new Date();
+      saveData();
+      return res.json({ message: '已确认领取', rental });
+    }
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/rentals/:id/return', auth, admin, async (req, res) => {
+  try {
+    if (useMongo) {
+      const rental = await Rental.findById(req.params.id);
+      if (!rental) return res.status(404).json({ error: '租借记录不存在' });
+      if (rental.status !== 'active') return res.status(400).json({ error: '该记录无需归还' });
       const item = await Item.findById(rental.item);
       if (item) { item.available += rental.quantity; await item.save(); }
       rental.status = 'returned'; rental.returnDate = new Date(); await rental.save();
