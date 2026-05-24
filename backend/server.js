@@ -14,11 +14,11 @@ let useMongo = false;
 const DATA_FILE = path.join(__dirname, 'data.json');
 
 let users = [
-  { id: '1', username: 'admin', email: 'admin@test.com', password: '$2a$10$placeholder', role: 'admin', active: true, phone: '13800138000', department: '信息中心', firstRental: false, wechat: '' },
-  { id: '2', username: '20240001', email: '20240001@test.com', password: '$2a$10$placeholder', role: 'user', active: true, phone: '13800138001', department: '计算机学院', firstRental: true, wechat: '' },
-  { id: '3', username: '20240002', email: '20240002@test.com', password: '$2a$10$placeholder', role: 'user', active: true, phone: '13800138002', department: '电子工程学院', firstRental: false, wechat: '' },
-  { id: '4', username: '20240003', email: '20240003@test.com', password: '$2a$10$placeholder', role: 'user', active: true, phone: '13800138003', department: '管理学院', firstRental: true, wechat: '' },
-  { id: '5', username: 'superadmin', email: 'superadmin@test.com', password: '$2a$10$placeholder', role: 'superadmin', active: true, phone: '13800138099', department: '信息中心', firstRental: false, wechat: '' },
+  { id: '1', username: 'admin', email: 'admin@test.com', password: '$2a$10$placeholder', role: 'admin', active: true, phone: '13800138000', department: '信息中心', firstRental: false, wechat: '', nickname: '' },
+  { id: '2', username: '20240001', email: '20240001@test.com', password: '$2a$10$placeholder', role: 'user', active: true, phone: '13800138001', department: '计算机学院', firstRental: true, wechat: '', nickname: '' },
+  { id: '3', username: '20240002', email: '20240002@test.com', password: '$2a$10$placeholder', role: 'user', active: true, phone: '13800138002', department: '电子工程学院', firstRental: false, wechat: '', nickname: '' },
+  { id: '4', username: '20240003', email: '20240003@test.com', password: '$2a$10$placeholder', role: 'user', active: true, phone: '13800138003', department: '管理学院', firstRental: true, wechat: '', nickname: '' },
+  { id: '5', username: 'superadmin', email: 'superadmin@test.com', password: '$2a$10$placeholder', role: 'superadmin', active: true, phone: '13800138099', department: '信息中心', firstRental: false, wechat: '', nickname: '' },
 ];
 let nextUserId = 6;
 
@@ -114,7 +114,7 @@ function sItemM(doc) {
 
 function sUserM(doc) {
   const o = doc.toObject ? doc.toObject() : doc;
-  return { id: o._id.toString(), username: o.username, email: o.email, role: o.role, phone: o.phone || '', department: o.department || '', wechat: o.wechat || '', active: o.active !== false, firstRental: o.firstRental !== false };
+  return { id: o._id.toString(), username: o.username, email: o.email, role: o.role, phone: o.phone || '', department: o.department || '', wechat: o.wechat || '', nickname: o.nickname || '', emailVerified: o.emailVerified || false, active: o.active !== false, firstRental: o.firstRental !== false };
 }
 
 function isValidObjectId(id) {
@@ -192,25 +192,37 @@ function superadmin(req, res, next) {
 // ── Auth Routes ──────────────────────────────────────────
 app.post('/api/auth/register', async (req, res) => {
   try {
-    const { username, password, email, wechat, phone } = req.body;
+    const { username, password, email, nickname, wechat, phone } = req.body;
     if (!username || !password || password.length < 6)
       return res.status(400).json({ error: '学号和密码不能为空，密码至少6位' });
-    const userEmail = email || `${username}@test.com`;
+    if (!email) return res.status(400).json({ error: '邮箱为必填项' });
 
     if (useMongo) {
       const exists = await User.findOne({ username });
       if (exists) return res.status(400).json({ error: '学号已存在' });
+      const emailExists = await User.findOne({ email });
+      if (emailExists) return res.status(400).json({ error: '邮箱已被注册' });
       const hashed = await bcrypt.hash(password, 10);
-      const user = await new User({ username, email: userEmail, password: hashed, role: 'user', active: true, wechat: wechat || '', phone: phone || '', firstRental: true }).save();
+      const user = await new User({ username, email, password: hashed, role: 'user', active: true, nickname: nickname || '', wechat: wechat || '', phone: phone || '', firstRental: true }).save();
       const token = jwt.sign({ userId: user._id.toString() }, process.env.JWT_SECRET);
-      return res.status(201).json({ message: '注册成功', token, user: { id: user._id.toString(), username: user.username, email: user.email, role: user.role } });
+      // Send verification email
+      try {
+        const code = String(Math.floor(100000 + Math.random() * 900000));
+        user.emailVerificationCode = code;
+        await user.save();
+        if (email.isConfigured()) {
+          email.sendEmail(email, '邮箱验证', `您好！您注册租借系统的验证码为：${code}\n\n验证码有效期为10分钟，请勿泄露。\n——租借系统`);
+        }
+      } catch (_) {}
+      return res.status(201).json({ message: '注册成功', token, user: { id: user._id.toString(), username: user.username, email: user.email, role: user.role, nickname: user.nickname || '', wechat: user.wechat || '', phone: user.phone || '', department: user.department || '' } });
     } else {
       if (users.find(u => u.username === username)) return res.status(400).json({ error: '学号已存在' });
+      if (users.find(u => u.email === email)) return res.status(400).json({ error: '邮箱已被注册' });
       const hashed = await bcrypt.hash(password, 10);
-      const newUser = { id: String(nextUserId++), username, email: userEmail, password: hashed, role: 'user', active: true, wechat: wechat || '', phone: phone || '', firstRental: true };
+      const newUser = { id: String(nextUserId++), username, email, password: hashed, role: 'user', active: true, nickname: nickname || '', wechat: wechat || '', phone: phone || '', firstRental: true, emailVerified: false };
       users.push(newUser); saveData();
       const token = jwt.sign({ userId: newUser.id }, process.env.JWT_SECRET);
-      return res.status(201).json({ message: '注册成功', token, user: { id: newUser.id, username: newUser.username, email: newUser.email, role: newUser.role } });
+      return res.status(201).json({ message: '注册成功', token, user: { id: newUser.id, username: newUser.username, email: newUser.email, role: newUser.role, nickname: newUser.nickname, wechat: newUser.wechat, phone: newUser.phone, department: newUser.department } });
     }
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -227,7 +239,7 @@ app.post('/api/auth/login', async (req, res) => {
       const match = await bcrypt.compare(password, user.password);
       if (!match) return res.status(401).json({ error: '学号或密码错误' });
       const token = jwt.sign({ userId: user._id.toString() }, process.env.JWT_SECRET);
-      return res.json({ message: '登录成功', token, user: { id: user._id.toString(), username: user.username, email: user.email, role: user.role } });
+      return res.json({ message: '登录成功', token, user: { id: user._id.toString(), username: user.username, email: user.email, role: user.role, nickname: user.nickname || '', wechat: user.wechat || '', phone: user.phone || '', department: user.department || '' } });
     } else {
       const user = users.find(u => u.username === username);
       if (!user) return res.status(401).json({ error: '学号或密码错误' });
@@ -235,7 +247,7 @@ app.post('/api/auth/login', async (req, res) => {
       const match = await bcrypt.compare(password, user.password);
       if (!match) return res.status(401).json({ error: '学号或密码错误' });
       const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET);
-      return res.json({ message: '登录成功', token, user: { id: user.id, username: user.username, email: user.email, role: user.role } });
+      return res.json({ message: '登录成功', token, user: { id: user.id, username: user.username, email: user.email, role: user.role, nickname: user.nickname || '', wechat: user.wechat || '', phone: user.phone || '', department: user.department || '' } });
     }
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -244,6 +256,77 @@ app.get('/api/auth/me', auth, (req, res) => {
   if (useMongo) return res.json({ user: sUserM(req.user) });
   const { password, ...u } = req.user;
   res.json({ user: u });
+});
+
+// ── Profile Management ───────────────────────────────────
+app.put('/api/auth/profile', auth, async (req, res) => {
+  try {
+    const { nickname, wechat, phone, department, email } = req.body;
+    if (useMongo) {
+      const user = await User.findById(req.user._id);
+      if (!user) return res.status(404).json({ error: '用户不存在' });
+      if (email !== undefined && email !== user.email) {
+        const dup = await User.findOne({ email, _id: { $ne: user._id } });
+        if (dup) return res.status(400).json({ error: '邮箱已被其他用户使用' });
+        user.email = email;
+        user.emailVerified = false;
+      }
+      if (nickname !== undefined) user.nickname = nickname;
+      if (wechat !== undefined) user.wechat = wechat;
+      if (phone !== undefined) user.phone = phone;
+      if (department !== undefined) user.department = department;
+      await user.save();
+      return res.json({ message: '资料更新成功', user: sUserM(user) });
+    } else {
+      const user = users.find(u => u.id === req.user.id);
+      if (!user) return res.status(404).json({ error: '用户不存在' });
+      if (email !== undefined && email !== user.email) {
+        if (users.find(u => u.email === email && u.id !== req.user.id)) return res.status(400).json({ error: '邮箱已被其他用户使用' });
+        user.email = email;
+        user.emailVerified = false;
+      }
+      if (nickname !== undefined) user.nickname = nickname;
+      if (wechat !== undefined) user.wechat = wechat;
+      if (phone !== undefined) user.phone = phone;
+      if (department !== undefined) user.department = department;
+      saveData();
+      const { password, ...rest } = user;
+      return res.json({ message: '资料更新成功', user: rest });
+    }
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/auth/send-verification', auth, async (req, res) => {
+  try {
+    if (!useMongo) return res.status(400).json({ error: '邮箱验证需要MongoDB' });
+    if (!email.isConfigured()) return res.status(400).json({ error: '邮件服务未配置' });
+    const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ error: '用户不存在' });
+    if (!user.email) return res.status(400).json({ error: '请先设置邮箱' });
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    user.emailVerificationCode = code;
+    await user.save();
+    const result = await email.sendEmail(user.email, '邮箱验证', `您好！您的邮箱验证码为：${code}\n\n验证码有效期为10分钟，请勿泄露。\n——租借系统`);
+    if (!result.success) return res.status(500).json({ error: '验证码发送失败: ' + result.error });
+    res.json({ message: '验证码已发送到您的邮箱' });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/auth/verify-email', auth, async (req, res) => {
+  try {
+    const { code } = req.body;
+    if (!code) return res.status(400).json({ error: '请输入验证码' });
+    if (useMongo) {
+      const user = await User.findById(req.user._id);
+      if (!user) return res.status(404).json({ error: '用户不存在' });
+      if (user.emailVerificationCode !== code) return res.status(400).json({ error: '验证码错误' });
+      user.emailVerified = true;
+      user.emailVerificationCode = undefined;
+      await user.save();
+      return res.json({ message: '邮箱验证成功', user: sUserM(user) });
+    }
+    res.status(400).json({ error: '邮箱验证需要MongoDB' });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // ── Item Routes ──────────────────────────────────────────
@@ -632,8 +715,8 @@ app.put('/api/admin/users/:id/status', auth, superadmin, async (req, res) => {
 app.get('/api/items/:id/comments', async (req, res) => {
   if (useMongo) {
     if (!isValidObjectId(req.params.id)) return res.json([]);
-    const list = await Comment.find({ item: req.params.id }).populate('user', 'username role').sort({ isPinned: -1, createdAt: -1 }).lean();
-    return res.json(list.map(c => ({ id: c._id.toString(), itemId: c.item.toString(), userId: c.user?._id?.toString() || '', username: c.user?.username || '未知', userRole: c.user?.role || 'user', content: c.content, isPinned: c.isPinned, createdAt: c.createdAt })));
+    const list = await Comment.find({ item: req.params.id }).populate('user', 'username nickname role').sort({ isPinned: -1, createdAt: -1 }).lean();
+    return res.json(list.map(c => ({ id: c._id.toString(), itemId: c.item.toString(), userId: c.user?._id?.toString() || '', username: c.user?.username || '未知', nickname: c.user?.nickname || '', userRole: c.user?.role || 'user', content: c.content, isPinned: c.isPinned, createdAt: c.createdAt })));
   }
   res.json([]);
 });
@@ -648,8 +731,8 @@ app.post('/api/items/:id/comments', auth, async (req, res) => {
       const item = await Item.findById(req.params.id);
       if (!item) return res.status(404).json({ error: '物品不存在' });
       const c = await new Comment({ item: item._id, user: req.user._id, content: content.trim() }).save();
-      await c.populate('user', 'username role');
-      return res.status(201).json({ message: '评论成功', comment: { id: c._id.toString(), itemId: item._id.toString(), userId: req.user._id.toString(), username: req.user.username, userRole: req.user.role, content: c.content, isPinned: false, createdAt: c.createdAt } });
+      await c.populate('user', 'username nickname role');
+      return res.status(201).json({ message: '评论成功', comment: { id: c._id.toString(), itemId: item._id.toString(), userId: req.user._id.toString(), username: req.user.username, nickname: req.user.nickname || '', userRole: req.user.role, content: c.content, isPinned: false, createdAt: c.createdAt } });
     }
     res.status(500).json({ error: '评论功能需要MongoDB' });
   } catch (e) { res.status(500).json({ error: e.message }); }

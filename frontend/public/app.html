@@ -366,6 +366,9 @@ tr:hover td{background:linear-gradient(90deg,rgba(99,102,241,.03),transparent)}
       <button class="nav-link" onclick="switchPage('my-rentals')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>我的租借
       </button>
+      <button class="nav-link" onclick="switchPage('profile')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>个人设置
+      </button>
       <button class="nav-link admin-only hidden" onclick="switchPage('admin')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>管理后台
       </button>
@@ -434,6 +437,33 @@ tr:hover td{background:linear-gradient(90deg,rgba(99,102,241,.03),transparent)}
             <table><thead><tr><th>物品</th><th>数量</th><th>日期</th><th>归还</th><th>状态</th><th>操作</th></tr></thead><tbody id="my-rentals-table"></tbody></table>
           </div>
           <div id="my-rentals-empty" class="empty-state hidden"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><p>暂无租借记录</p></div>
+        </div>
+      </div>
+
+      <!-- Profile -->
+      <div id="page-profile" class="page hidden">
+        <div class="page-header"><h2>个人设置</h2></div>
+        <div class="card" style="max-width:500px">
+          <div class="card-header"><div><div class="card-title">编辑资料</div></div></div>
+          <div class="form-group"><label class="form-label">学号</label><input class="input" id="prof-username" disabled style="background:var(--bg-muted);color:var(--text-muted)"></div>
+          <div class="form-group"><label class="form-label">昵称</label><input class="input" id="prof-nickname" placeholder="你的显示昵称"></div>
+          <div class="form-group"><label class="form-label">邮箱</label>
+            <div style="display:flex;gap:8px">
+              <input class="input" id="prof-email" type="email" placeholder="邮箱地址" style="flex:1">
+              <button class="btn btn-outline btn-sm" id="prof-send-vcode" onclick="sendProfileVerification()">发送验证码</button>
+            </div>
+            <div id="prof-verify-row" style="display:none;margin-top:8px">
+              <div style="display:flex;gap:8px">
+                <input class="input" id="prof-vcode" placeholder="输入验证码" style="flex:1">
+                <button class="btn btn-primary btn-sm" onclick="verifyProfileEmail()">验证</button>
+              </div>
+            </div>
+            <div style="margin-top:4px"><span id="prof-email-status" style="font-size:12px;color:var(--text-muted)"></span></div>
+          </div>
+          <div class="form-group"><label class="form-label">微信号</label><input class="input" id="prof-wechat" placeholder="微信号"></div>
+          <div class="form-group"><label class="form-label">手机号</label><input class="input" id="prof-phone" placeholder="手机号"></div>
+          <div class="form-group"><label class="form-label">院系</label><input class="input" id="prof-department" placeholder="所属院系"></div>
+          <button class="btn btn-primary" onclick="saveProfile()">保存</button>
         </div>
       </div>
 
@@ -671,7 +701,8 @@ tr:hover td{background:linear-gradient(90deg,rgba(99,102,241,.03),transparent)}
       <div id="register-form" class="hidden">
         <div class="form-group"><label class="form-label">学号</label><input class="input" id="reg-username" type="text" placeholder="请输入学号"></div>
         <div class="form-group"><label class="form-label">密码（至少6位）</label><input class="input" id="reg-password" type="password" placeholder="请输入密码"></div>
-        <div class="form-group"><label class="form-label">邮箱（选填，用于催还通知）</label><input class="input" id="reg-email" type="email" placeholder="接收催还邮件"></div>
+        <div class="form-group"><label class="form-label">昵称</label><input class="input" id="reg-nickname" type="text" placeholder="你的显示昵称"></div>
+        <div class="form-group"><label class="form-label">邮箱 *</label><input class="input" id="reg-email" type="email" placeholder="必填，用于接收通知和验证"></div>
         <div class="form-group"><label class="form-label">微信号（选填）</label><input class="input" id="reg-wechat" type="text" placeholder="方便管理员联系"></div>
         <div class="form-group"><label class="form-label">手机号（选填）</label><input class="input" id="reg-phone" type="text" placeholder="联系电话"></div>
         <button class="btn btn-primary btn-lg" onclick="handleRegister()">注册</button>
@@ -745,10 +776,11 @@ async function handleLogin(){
 
 async function handleRegister(){
   const u=document.getElementById('reg-username').value.trim(),p=document.getElementById('reg-password').value;
-  const e=document.getElementById('reg-email').value.trim(),w=document.getElementById('reg-wechat').value.trim(),ph=document.getElementById('reg-phone').value.trim();
+  const e=document.getElementById('reg-email').value.trim(),n=document.getElementById('reg-nickname').value.trim(),w=document.getElementById('reg-wechat').value.trim(),ph=document.getElementById('reg-phone').value.trim();
   if(!u||p.length<6){toast('请输入学号，密码至少6位','error');return}
+  if(!e){toast('请输入邮箱','error');return}
   try{
-    const d=await api('POST','/auth/register',{username:u,password:p,email:e||undefined,wechat:w,phone:ph});
+    const d=await api('POST','/auth/register',{username:u,password:p,email:e,nickname:n||undefined,wechat:w,phone:ph});
     st(d.token);su(d.user);currentUser=d.user;toast('注册成功');enterMain();
   }catch(e){toast(e.message,'error')}
 }
@@ -759,8 +791,8 @@ function toggleSidebar(){document.getElementById('sidebar').classList.toggle('op
 async function enterMain(){
   document.getElementById('login-page').classList.add('hidden');
   document.getElementById('main-content').classList.remove('hidden');
-  document.getElementById('nav-username').textContent=currentUser.username;
-  document.getElementById('nav-avatar').textContent=currentUser.username.charAt(0).toUpperCase();
+  document.getElementById('nav-username').textContent=currentUser.nickname||currentUser.username;
+  document.getElementById('nav-avatar').textContent=(currentUser.nickname||currentUser.username).charAt(0).toUpperCase();
   document.getElementById('nav-role').textContent=currentUser.role==='superadmin'?'超级管理员':currentUser.role==='admin'?'管理员':'普通用户';
   const isAdmin=currentUser.role==='admin'||currentUser.role==='superadmin';
   document.querySelectorAll('.admin-only').forEach(el=>{if(isAdmin)el.classList.remove('hidden');else el.classList.add('hidden')});
@@ -783,19 +815,19 @@ async function loadData(){
   }catch(e){}
 }
 
-const PT={dashboard:'仪表板',items:'物品列表','my-rentals':'我的租借',admin:'管理后台',detail:'物品详情'};
+const PT={dashboard:'仪表板',items:'物品列表','my-rentals':'我的租借',profile:'个人设置',admin:'管理后台',detail:'物品详情'};
 function switchPage(page){
   document.querySelectorAll('.page').forEach(p=>p.classList.add('hidden'));
   document.getElementById('page-'+page).classList.remove('hidden');
   document.querySelectorAll('.nav-link').forEach(l=>l.classList.remove('active'));
-  const pages=['dashboard','items','my-rentals','admin'];
+  const pages=['dashboard','items','my-rentals','profile','admin'];
   const idx=pages.indexOf(page);
   if(idx>=0){const nl=document.querySelectorAll('.nav-link');if(nl[idx])nl[idx].classList.add('active')}
   document.getElementById('page-title').textContent=PT[page]||page;
   document.getElementById('sidebar').classList.remove('open');document.getElementById('sidebar-overlay').classList.remove('open');
   renderPage(page);
 }
-function renderPage(p){if(p==='dashboard')renderDashboard();else if(p==='items')renderItems();else if(p==='my-rentals')renderMyRentals();else if(p==='admin')renderAdminApprovals();else if(p==='detail')renderDetail()}
+function renderPage(p){if(p==='dashboard')renderDashboard();else if(p==='items')renderItems();else if(p==='my-rentals')renderMyRentals();else if(p==='profile')renderProfile();else if(p==='admin')renderAdminApprovals();else if(p==='detail')renderDetail()}
 
 // Dashboard
 function renderDashboard(){
@@ -1177,12 +1209,13 @@ function renderComments(){
   const cc={电子产品:'#3b82f6',办公用品:'#10b981',运动器材:'#f59e0b',生活用品:'#8b5cf6'};
   list.innerHTML=dComments.map(c=>{
     const avatarColor=cc[c.userRole]||'#6366f1';
+    const displayName=c.nickname||c.username||'未知';
     return `<div class="comment-item${c.isPinned?' pinned':''}">
-      <div class="comment-avatar" style="background:${avatarColor}">${(c.username||'?').charAt(0).toUpperCase()}</div>
+      <div class="comment-avatar" style="background:${avatarColor}">${displayName.charAt(0).toUpperCase()}</div>
       <div class="comment-body">
         <div class="comment-meta">
           ${c.isPinned?'<span style="font-size:11px;background:#fef3c7;color:#92400e;padding:1px 6px;border-radius:100px">📌 置顶</span>':''}
-          <span style="font-weight:600;font-size:14px">${c.username}</span>
+          <span style="font-weight:600;font-size:14px">${displayName}</span>
           <span class="badge badge-${c.userRole}" style="font-size:10px">${c.userRole==='superadmin'?'超管':c.userRole==='admin'?'管理':'用户'}</span>
           <span style="font-size:12px;color:var(--text-muted)">${new Date(c.createdAt).toLocaleDateString()}</span>
         </div>
@@ -1236,6 +1269,62 @@ async function toggleUserStatus(id,active){
 }
 async function urgeRental(id){
   try{const r=await api('POST','/rentals/'+id+'/urge');const extra=r.email?' ['+r.email+']':'';toast(r.message+extra)}catch(e){toast(e.message,'error')}
+}
+// ── Profile ──────────────────────────────────────────────────
+let profileEmailChanged=false;
+function renderProfile(){
+  const u=currentUser;
+  if(!u)return;
+  document.getElementById('prof-username').value=u.username||'';
+  document.getElementById('prof-nickname').value=u.nickname||'';
+  document.getElementById('prof-email').value=u.email||'';
+  document.getElementById('prof-wechat').value=u.wechat||'';
+  document.getElementById('prof-phone').value=u.phone||'';
+  document.getElementById('prof-department').value=u.department||'';
+  profileEmailChanged=false;
+  const statusEl=document.getElementById('prof-email-status');
+  if(u.emailVerified){statusEl.innerHTML='<span style="color:var(--success)">● 已验证</span>'}
+  else{statusEl.innerHTML='<span style="color:var(--warning)">● 未验证</span>'}
+  document.getElementById('prof-verify-row').style.display='none';
+}
+async function saveProfile(){
+  const n=document.getElementById('prof-nickname').value.trim(),w=document.getElementById('prof-wechat').value.trim(),ph=document.getElementById('prof-phone').value.trim(),d=document.getElementById('prof-department').value.trim();
+  try{
+    const r=await api('PUT','/auth/profile',{nickname:n,wechat:w,phone:ph,department:d});
+    su(r.user);currentUser=r.user;
+    document.getElementById('nav-username').textContent=r.user.nickname||r.user.username;
+    toast('资料已保存');
+  }catch(e){toast(e.message,'error')}
+}
+async function sendProfileVerification(){
+  const email=document.getElementById('prof-email').value.trim();
+  if(!email){toast('请输入邮箱','error');return}
+  const btn=document.getElementById('prof-send-vcode');btn.disabled=true;btn.textContent='发送中...';
+  // If email changed, first update it via profile
+  if(email!==currentUser.email){
+    try{
+      await api('PUT','/auth/profile',{email});
+      const r=await api('GET','/auth/me');
+      su(r.user);currentUser=r.user;
+    }catch(e){btn.disabled=false;btn.textContent='发送验证码';toast(e.message,'error');return}
+  }
+  try{
+    await api('POST','/auth/send-verification');
+    toast('验证码已发送');
+    document.getElementById('prof-verify-row').style.display='block';
+    btn.textContent='重新发送';btn.disabled=false;
+  }catch(e){toast(e.message,'error');btn.disabled=false;btn.textContent='发送验证码'}
+}
+async function verifyProfileEmail(){
+  const code=document.getElementById('prof-vcode').value.trim();
+  if(!code){toast('请输入验证码','error');return}
+  try{
+    const r=await api('POST','/auth/verify-email',{code});
+    su(r.user);currentUser=r.user;
+    document.getElementById('prof-email-status').innerHTML='<span style="color:var(--success)">● 已验证</span>';
+    document.getElementById('prof-verify-row').style.display='none';
+    toast('邮箱验证成功');
+  }catch(e){toast(e.message,'error')}
 }
 async function checkSmsStatus(){
   try{const r=await api('GET','/sms/status');const b=document.getElementById('sms-status-badge');if(r.configured){b.textContent='已配置';b.style.background='#d1fae5';b.style.color='#065f46'}else{b.textContent='未配置';b.style.background='#fee2e2';b.style.color='#991b1b'}}catch(e){}

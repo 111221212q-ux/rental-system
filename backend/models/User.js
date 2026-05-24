@@ -38,6 +38,17 @@ const userSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
+  nickname: {
+    type: String,
+    trim: true
+  },
+  emailVerified: {
+    type: Boolean,
+    default: false
+  },
+  emailVerificationCode: {
+    type: String
+  },
   firstRental: {
     type: Boolean,
     default: true
