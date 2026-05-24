@@ -5,7 +5,7 @@ const smtpHost = process.env.EMAIL_HOST || 'smtp.qq.com';
 const smtpPort = parseInt(process.env.EMAIL_PORT || '465');
 const smtpUser = process.env.EMAIL_USER || '';
 const smtpPass = process.env.EMAIL_PASS || '';
-const fromName = process.env.EMAIL_FROM || '租借系统';
+const fromName = process.env.EMAIL_FROM || 'Rental';
 const fromEmail = process.env.EMAIL_FROM_EMAIL || 'onboarding@resend.dev';
 
 function isConfigured() {
@@ -23,7 +23,11 @@ async function sendEmail(to, subject, text) {
       const r = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ from: `"${fromName}" <${fromEmail}>`, to, subject, text }),
+        body: JSON.stringify({
+          from: `"${fromName}" <${fromEmail}>`,
+          to, subject,
+          html: `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="font-family:sans-serif;white-space:pre-wrap">${text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>')}</body></html>`,
+        }),
         signal: controller.signal,
       });
       clearTimeout(timer);
