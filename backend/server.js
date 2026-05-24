@@ -503,6 +503,30 @@ app.post('/api/rentals/:id/urge', auth, admin, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// ── Seed overdue test data ───────────────────────────────
+app.post('/api/seed-overdue', auth, admin, async (req, res) => {
+  try {
+    if (!useMongo) return res.status(400).json({ error: '仅限MongoDB模式' });
+    const now = new Date();
+    const past = (d) => new Date(now.getTime() - d * 86400000);
+    const users = await User.find({ role: 'user', active: true }).limit(3).lean();
+    if (users.length === 0) return res.status(400).json({ error: '没有普通用户，请先注册几个账号' });
+    const items = await Item.find({ status: 'available' }).limit(3).lean();
+    if (items.length === 0) return res.status(400).json({ error: '没有可用物品' });
+    const created = [];
+    for (let i = 0; i < Math.min(users.length, items.length); i++) {
+      const rental = await new Rental({
+        item: items[i]._id, user: users[i]._id, quantity: 1,
+        startDate: past(10 + i * 3), endDate: past(2 + i),
+        status: 'active', notes: '测试逾期数据',
+        pickedAt: past(8 + i * 3)
+      }).save();
+      created.push({ user: users[i].username, item: items[i].name, endDate: past(2 + i) });
+    }
+    res.json({ message: `已创建 ${created.length} 条逾期租借`, data: created });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // ── Contact / Admin Info ─────────────────────────────────
 app.get('/api/contact/admin', async (req, res) => {
   if (useMongo) {
