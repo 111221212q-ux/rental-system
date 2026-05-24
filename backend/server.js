@@ -798,11 +798,21 @@ app.get('/api/notifications', auth, async (req, res) => {
 });
 
 app.get('/api/health', async (_, res) => {
+  // Quick connectivity test - can we reach external HTTPS?
+  let canReachInternet = 'untested';
+  try {
+    await Promise.race([
+      fetch('https://api.resend.com/emails', { method: 'HEAD', signal: AbortSignal.timeout(5000) }),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000))
+    ]);
+    canReachInternet = true;
+  } catch (e) { canReachInternet = false; }
+
   if (useMongo) {
     const [uc, ic, rc] = await Promise.all([User.countDocuments(), Item.countDocuments(), Rental.countDocuments()]);
-    return res.json({ status: 'ok', timestamp: new Date(), users: uc, items: ic, rentals: rc, emailConfigured: email.isConfigured() });
+    return res.json({ status: 'ok', timestamp: new Date(), users: uc, items: ic, rentals: rc, emailConfigured: email.isConfigured(), canReachInternet });
   }
-  res.json({ status: 'ok', timestamp: new Date(), users: users.length, items: items.length, rentals: rentals.length, emailConfigured: email.isConfigured() });
+  res.json({ status: 'ok', timestamp: new Date(), users: users.length, items: items.length, rentals: rentals.length, emailConfigured: email.isConfigured(), canReachInternet });
 });
 
 // ── Start ────────────────────────────────────────────────
