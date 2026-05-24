@@ -114,6 +114,10 @@ function sUserM(doc) {
   return { id: o._id.toString(), username: o.username, email: o.email, role: o.role, phone: o.phone || '', department: o.department || '', wechat: o.wechat || '', active: o.active !== false, firstRental: o.firstRental !== false };
 }
 
+function isValidObjectId(id) {
+  return mongoose?.Types?.ObjectId?.isValid(id);
+}
+
 async function sRentalM(r) {
   const user = r.user?.username ? r.user : await User.findById(r.user).lean();
   const item = r.item?.name ? r.item : await Item.findById(r.item).lean();
@@ -511,6 +515,7 @@ app.put('/api/admin/users/:id/status', auth, superadmin, async (req, res) => {
 // ── Comments ─────────────────────────────────────────────
 app.get('/api/items/:id/comments', async (req, res) => {
   if (useMongo) {
+    if (!isValidObjectId(req.params.id)) return res.json([]);
     const list = await Comment.find({ item: req.params.id }).populate('user', 'username role').sort({ isPinned: -1, createdAt: -1 }).lean();
     return res.json(list.map(c => ({ id: c._id.toString(), itemId: c.item.toString(), userId: c.user?._id?.toString() || '', username: c.user?.username || '未知', userRole: c.user?.role || 'user', content: c.content, isPinned: c.isPinned, createdAt: c.createdAt })));
   }
@@ -523,6 +528,7 @@ app.post('/api/items/:id/comments', auth, async (req, res) => {
     if (!content || !content.trim()) return res.status(400).json({ error: '评论内容不能为空' });
     if (content.length > 500) return res.status(400).json({ error: '评论不能超过500字' });
     if (useMongo) {
+      if (!isValidObjectId(req.params.id)) return res.status(404).json({ error: '物品不存在' });
       const item = await Item.findById(req.params.id);
       if (!item) return res.status(404).json({ error: '物品不存在' });
       const c = await new Comment({ item: item._id, user: req.user._id, content: content.trim() }).save();
@@ -536,6 +542,7 @@ app.post('/api/items/:id/comments', auth, async (req, res) => {
 app.delete('/api/comments/:id', auth, async (req, res) => {
   try {
     if (useMongo) {
+      if (!isValidObjectId(req.params.id)) return res.status(404).json({ error: '评论不存在' });
       const c = await Comment.findById(req.params.id);
       if (!c) return res.status(404).json({ error: '评论不存在' });
       const isAdmin = req.user.role === 'admin' || req.user.role === 'superadmin';
@@ -550,6 +557,7 @@ app.delete('/api/comments/:id', auth, async (req, res) => {
 app.put('/api/comments/:id/pin', auth, admin, async (req, res) => {
   try {
     if (useMongo) {
+      if (!isValidObjectId(req.params.id)) return res.status(404).json({ error: '评论不存在' });
       const c = await Comment.findById(req.params.id);
       if (!c) return res.status(404).json({ error: '评论不存在' });
       c.isPinned = !c.isPinned; await c.save();

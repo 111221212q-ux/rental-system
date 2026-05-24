@@ -2,8 +2,16 @@ import { useState, useEffect } from 'react';
 import api from './utils/api';
 
 function App() {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
+  const [username, setUsername] = useState(() => (
+    localStorage.getItem('rental_remember') === 'true'
+      ? localStorage.getItem('rental_username') || ''
+      : ''
+  ));
+  const [password, setPassword] = useState(() => (
+    localStorage.getItem('rental_remember') === 'true'
+      ? localStorage.getItem('rental_password') || ''
+      : ''
+  ));
   const [isLogin, setIsLogin] = useState(true);
   const [message, setMessage] = useState('');
   const [loggedIn, setLoggedIn] = useState(false);
@@ -16,7 +24,11 @@ function App() {
     reason: ''
   });
   const [usersStatsData, setUsersStatsData] = useState([]);
-  const [rememberMe, setRememberMe] = useState(false);
+  const [rememberMe, setRememberMe] = useState(() => localStorage.getItem('rental_remember') === 'true');
+  const [itemsData, setItemsData] = useState([]);
+  const [rentalsData, setRentalsData] = useState([]);
+  const [myRentalsData, setMyRentalsData] = useState([]);
+  const [, setLoading] = useState(true);
 
   // 新增物品相关状态
   const [showAddItemModal, setShowAddItemModal] = useState(false);
@@ -116,9 +128,6 @@ function App() {
     e.preventDefault();
 
     try {
-      // 获取选中物品的完整信息
-      const item = itemsData.find(i => i.id === selectedItem.id);
-
       await api.post('/rentals', {
         itemId: selectedItem.id,
         quantity: rentalData.quantity,
@@ -236,7 +245,7 @@ function App() {
         return;
       }
 
-      const response = await api.post('/items', {
+      await api.post('/items', {
         ...newItem,
         availableStock: newItem.totalStock,
         status: 'available'
@@ -275,21 +284,6 @@ function App() {
     }
   };
 
-  useEffect(() => {
-    // 页面加载时检查保存的登录信息
-    const savedUsername = localStorage.getItem('rental_username');
-    const savedRemember = localStorage.getItem('rental_remember');
-    const savedPassword = localStorage.getItem('rental_password');
-
-    if (savedRemember === 'true' && savedUsername) {
-      setUsername(savedUsername);
-      if (savedPassword) {
-        setPassword(savedPassword);
-        setRememberMe(true);
-      }
-    }
-  }, []);
-
   // 当 rememberMe 状态改变时更新 localStorage
   useEffect(() => {
     if (rememberMe) {
@@ -320,12 +314,6 @@ function App() {
 
     loadData();
   }, [loggedIn]);
-
-  // 状态：loading, items, rentals, myRentals
-  const [itemsData, setItemsData] = useState([]);
-  const [rentalsData, setRentalsData] = useState([]);
-  const [myRentalsData, setMyRentalsData] = useState([]);
-  const [loading, setLoading] = useState(true);
 
   if (loggedIn) {
     return (

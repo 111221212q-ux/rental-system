@@ -1,18 +1,18 @@
 import http from 'http';
 import { readFile } from 'fs/promises';
 import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
+import { dirname, extname, join } from 'path';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const server = http.createServer((req, res) => {
-  let filePath = path.join(__dirname, 'public', req.url === '/' ? 'index.html' : req.url);
+  const filePath = join(__dirname, 'public', req.url === '/' ? 'index.html' : req.url);
 
-  const extname = path.extname(filePath);
+  const ext = extname(filePath);
   let contentType = 'text/html';
 
-  switch(extname) {
+  switch(ext) {
     case '.js':
       contentType = 'text/javascript';
       break;
@@ -31,18 +31,8 @@ const server = http.createServer((req, res) => {
   }
 
   readFile(filePath, { encoding: 'utf8' }).then(content => {
-    if (err) {
-      if(err.code === 'ENOENT') {
-        res.writeHead(404);
-        res.end('页面不存在');
-      } else {
-        res.writeHead(500);
-        res.end('服务器错误: ' + err.code);
-      }
-    } else {
-      res.writeHead(200, { 'Content-Type': contentType });
-      res.end(content);
-    }
+    res.writeHead(200, { 'Content-Type': contentType });
+    res.end(content);
   }).catch(err => {
     if(err.code === 'ENOENT') {
       res.writeHead(404);
