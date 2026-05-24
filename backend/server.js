@@ -146,13 +146,14 @@ async function sRentalM(r) {
 const app = express();
 const ALLOWED_ORIGINS = [
   'https://rental-system-production-f530.up.railway.app',
+  'https://rental.gggffxu.xyz',
   'http://localhost:5000',
   'http://localhost:3000',
 ];
 app.use(cors({ origin: (origin, cb) => cb(null, ALLOWED_ORIGINS.includes(origin) || !origin) }));
 app.use(express.json());
 app.use((_, res, next) => {
-  res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' https: http:; connect-src 'self' https://api.resend.com; frame-src 'none'; object-src 'none'");
+  res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' https: http:; connect-src 'self' https://api.resend.com https://rental.gggffxu.xyz; frame-src 'none'; object-src 'none'");
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   next();

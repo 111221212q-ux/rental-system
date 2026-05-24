@@ -1,15 +1,16 @@
 # 校园物品租借系统 · 开发日志
 
-## 2026-05-24 — 域名配置：Resend 发信 + Railway 自定义域名
+## 2026-05-24 — DNS 传播完成 && 自定义域名生效
 
 ### 完成事项
-- **域名实名通过**：`gggffxu.xyz` 阿里云实名认证审核通过
-- **Resend 域名验证**：在 Resend 添加 `gggffxu.xyz`，配置 DKIM/SPF/DMARC 四条 DNS 记录（存阿里云 DNS）
-- **Railway 自定义域名**：添加 `rental.gggffxu.xyz` CNAME → `jafzgjta.up.railway.app`，配 Railway 验证 TXT 记录
-
-### 等待 DNS 传播
-- 域名 NS 委派（dns13/14.hichina.com）仍在 .xyz 注册局同步中，预计 **24-48 小时**
-- Resend 域名验证 和 Railway 自定义域名 均需等传播到位后自动生效
+- **DNS 传播完成**：`gggffxu.xyz` NS 委派已生效，Resend 自动验证域名通过
+- **自定义域名访问正常**：`https://rental.gggffxu.xyz` 返回 HTTP 200
+- **邮件发送成功**：通过 Resend API 使用 `noreply@gggffxu.xyz` 发信测试通过
+- **系统配置更新**：
+  - Railway 环境变量 `EMAIL_FROM_EMAIL` → `noreply@gggffxu.xyz`
+  - `ALLOWED_ORIGINS` 加入 `https://rental.gggffxu.xyz`
+  - CSP 头 `connect-src` 加入自定义域名
+- **所有功能正常**：生产 API 健康检查通过，emailConfigured: true
 
 ---
 
