@@ -932,7 +932,7 @@ function renderAdminApprovals(){
   if(p.length===0){t.innerHTML='';e.classList.remove('hidden');return}
   e.classList.add('hidden');
   t.innerHTML=p.map(r=>`<tr>
-    <td>${r.username||r.userId}</td><td><strong>${r.itemName}</strong></td><td>${r.quantity}</td>
+    <td>${r.userName||r.userId}${r.userNickname?' ('+r.userNickname+')':''}</td><td><strong>${r.itemName}</strong></td><td>${r.quantity}</td>
     <td style="font-size:13px">${new Date(r.startDate).toLocaleDateString()}-${new Date(r.endDate).toLocaleDateString()}</td>
     <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;color:var(--text-secondary)" title="${r.reason||''}">${r.reason||'-'}</td>
     <td><div style="display:flex;gap:6px">
@@ -957,7 +957,7 @@ function renderAdminPickup(){
   if(p.length===0){t.innerHTML='';e.classList.remove('hidden');return}
   e.classList.add('hidden');
   t.innerHTML=p.map(r=>`<tr>
-    <td>${r.username||r.userId}</td><td><strong>${r.itemName}</strong></td><td>${r.quantity}</td>
+    <td>${r.userName||r.userId}${r.userNickname?' ('+r.userNickname+')':''}</td><td><strong>${r.itemName}</strong></td><td>${r.quantity}</td>
     <td style="font-size:13px">${new Date(r.startDate).toLocaleDateString()}-${new Date(r.endDate).toLocaleDateString()}</td>
     <td><button class="btn btn-primary btn-sm" onclick="pickupRental('${r.id}')">确认领取</button></td>
   </tr>`).join('');
@@ -1059,24 +1059,24 @@ function showStatsDetail(type,filter){
   }else if(type==='rentals'){
     title.textContent='租借记录 ('+allRentals.length+'条)';
     thead.innerHTML='<tr><th>用户</th><th>物品</th><th>数量</th><th>开始</th><th>结束</th><th>状态</th></tr>';
-    tbody.innerHTML=allRentals.map(r=>`<tr><td>${esc(r.username)||r.userId}</td><td><strong>${esc(r.itemName)}</strong></td><td>${r.quantity}</td><td>${new Date(r.startDate).toLocaleDateString()}</td><td>${new Date(r.endDate).toLocaleDateString()}</td><td><span class="badge badge-${r.status}">${sm[r.status]||r.status}</span></td></tr>`).join('');
+    tbody.innerHTML=allRentals.map(r=>`<tr><td>${esc(r.userName||r.userId)}${r.userNickname?' ('+esc(r.userNickname)+')':''}</td><td><strong>${esc(r.itemName)}</strong></td><td>${r.quantity}</td><td>${new Date(r.startDate).toLocaleDateString()}</td><td>${new Date(r.endDate).toLocaleDateString()}</td><td><span class="badge badge-${r.status}">${sm[r.status]||r.status}</span></td></tr>`).join('');
   }else if(type==='pending'){
     const p=allRentals.filter(r=>r.status==='pending');
     title.textContent='待审核申请 ('+p.length+'条)';
     thead.innerHTML='<tr><th>用户</th><th>物品</th><th>数量</th><th>日期</th><th>用途</th></tr>';
-    tbody.innerHTML=p.length===0?'<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:24px">暂无数据</td></tr>':p.map(r=>`<tr><td>${esc(r.username)||r.userId}</td><td><strong>${esc(r.itemName)}</strong></td><td>${r.quantity}</td><td style="font-size:13px">${new Date(r.startDate).toLocaleDateString()}-${new Date(r.endDate).toLocaleDateString()}</td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;color:var(--text-secondary)" title="${esc(r.reason||'')}">${esc(r.reason)||'-'}</td></tr>`).join('');
+    tbody.innerHTML=p.length===0?'<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:24px">暂无数据</td></tr>':p.map(r=>`<tr><td>${esc(r.userName||r.userId)}${r.userNickname?' ('+esc(r.userNickname)+')':''}</td><td><strong>${esc(r.itemName)}</strong></td><td>${r.quantity}</td><td style="font-size:13px">${new Date(r.startDate).toLocaleDateString()}-${new Date(r.endDate).toLocaleDateString()}</td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;color:var(--text-secondary)" title="${esc(r.reason||'')}">${esc(r.reason)||'-'}</td></tr>`).join('');
   }else if(type==='status'){
     const list=allRentals.filter(r=>r.status===filter);
     title.textContent=(sm[filter]||filter)+' ('+list.length+'条)';
     thead.innerHTML='<tr><th>用户</th><th>物品</th><th>数量</th><th>开始</th><th>结束</th><th>状态</th></tr>';
-    tbody.innerHTML=list.length===0?'<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:24px">暂无数据</td></tr>':list.map(r=>`<tr><td>${esc(r.username)||r.userId}</td><td><strong>${esc(r.itemName)}</strong></td><td>${r.quantity}</td><td>${new Date(r.startDate).toLocaleDateString()}</td><td>${new Date(r.endDate).toLocaleDateString()}</td><td><span class="badge badge-${r.status}">${sm[r.status]||r.status}</span></td></tr>`).join('');
+    tbody.innerHTML=list.length===0?'<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:24px">暂无数据</td></tr>':list.map(r=>`<tr><td>${esc(r.userName||r.userId)}${r.userNickname?' ('+esc(r.userNickname)+')':''}</td><td><strong>${esc(r.itemName)}</strong></td><td>${r.quantity}</td><td>${new Date(r.startDate).toLocaleDateString()}</td><td>${new Date(r.endDate).toLocaleDateString()}</td><td><span class="badge badge-${r.status}">${sm[r.status]||r.status}</span></td></tr>`).join('');
   }else if(type==='overdue'){
     const now=new Date();const list=allRentals.filter(r=>r.status==='active'&&new Date(r.endDate)<now);
     title.textContent='逾期租借 ('+list.length+'条)';
     thead.innerHTML='<tr><th>用户</th><th>物品</th><th>数量</th><th>结束日期</th><th>逾期天数</th><th>操作</th></tr>';
     tbody.innerHTML=list.length===0?'<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:24px">暂无逾期</td></tr>':list.map(r=>{
       const days=Math.floor((now-new Date(r.endDate))/(86400000));
-      return `<tr style="background:#fef2f2"><td>${r.username||r.userId}</td><td><strong>${r.itemName}</strong></td><td>${r.quantity}</td><td>${new Date(r.endDate).toLocaleDateString()}</td><td><span style="color:#dc2626;font-weight:600">${days}天</span></td><td><button class="btn btn-sm btn-warning" onclick="urgeRental('${r.id}')">催还</button></td></tr>`;
+      return `<tr style="background:#fef2f2"><td>${r.userName||r.userId}${r.userNickname?' ('+r.userNickname+')':''}</td><td><strong>${r.itemName}</strong></td><td>${r.quantity}</td><td>${new Date(r.endDate).toLocaleDateString()}</td><td><span style="color:#dc2626;font-weight:600">${days}天</span></td><td><button class="btn btn-sm btn-warning" onclick="urgeRental('${r.id}')">催还</button></td></tr>`;
     }).join('');
   }
 }
