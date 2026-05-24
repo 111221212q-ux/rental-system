@@ -15,6 +15,9 @@ function isConfigured() {
 async function sendEmail(to, subject, text) {
   if (!isConfigured()) return { success: false, error: 'Email not configured' };
 
+  // HTML entity encode non-ASCII chars for body
+  const toEntities = s => [...s].map(c => c.charCodeAt(0) > 127 ? '&#' + c.charCodeAt(0) + ';' : c).join('');
+
   // Resend HTTP API (native fetch)
   if (resendKey) {
     try {
@@ -25,9 +28,11 @@ async function sendEmail(to, subject, text) {
         headers: { 'Authorization': `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           from: `"${fromName}" <${fromEmail}>`,
-          to, subject,
-          html: `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="font-family:sans-serif;white-space:pre-wrap">${text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>')}</body></html>`,
-          headers: { 'Content-Type': 'text/html; charset=UTF-8' },
+          to,
+          subject: '=?UTF-8?B?' + Buffer.from(subject).toString('base64') + '?=',
+          html: '<html><head><meta charset="utf-8"></head><body style="font-family:sans-serif;white-space:pre-wrap">'
+            + toEntities(text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')).replace(/\n/g,'<br>')
+            + '</body></html>',
         }),
         signal: controller.signal,
       });
