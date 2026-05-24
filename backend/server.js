@@ -359,9 +359,10 @@ app.post('/api/rentals', auth, async (req, res) => {
       // Anti-duplicate: reject if same user+item pending within 30s
       const recent = await Rental.findOne({ user: req.user._id, item: item._id, status: 'pending', createdAt: { $gte: new Date(Date.now() - 30000) } });
       if (recent) return res.status(400).json({ error: '请勿重复提交，您已有该物品的待审核申请' });
-      const rental = await new Rental({ item: item._id, user: req.user._id, quantity, startDate: new Date(startDate), endDate: new Date(endDate), status: 'pending', notes: reason }).save();
+      const rental = await new Rental({ item: item._id, user: req.user._id, quantity, startDate: new Date(startDate), endDate: new Date(endDate), status: item.requiresApproval === false ? 'approved' : 'pending', notes: reason }).save();
+      if (item.requiresApproval === false) { item.available -= quantity; await item.save(); }
       const result = await sRentalM(rental);
-      return res.status(201).json({ message: '申请提交成功', rental: result });
+      return res.status(201).json({ message: item.requiresApproval === false ? '租借成功' : '申请提交成功', rental: result });
     } else {
       const item = items.find(i => i.id === itemId);
       if (!item) return res.status(404).json({ error: '物品不存在' });
@@ -371,9 +372,12 @@ app.post('/api/rentals', auth, async (req, res) => {
       const now = Date.now();
       const recent = rentals.find(r => r.userId === req.user.id && r.itemId === itemId && r.status === 'pending' && (now - new Date(r.createdAt).getTime()) < 30000);
       if (recent) return res.status(400).json({ error: '请勿重复提交，您已有该物品的待审核申请' });
-      const newRental = { id: String(nextRentalId++), userId: req.user.id, itemId, itemCode: item.code, itemName: item.name, quantity, startDate: new Date(startDate), endDate: new Date(endDate), reason, status: 'pending', createdAt: new Date() };
-      rentals.push(newRental); saveData();
-      return res.status(201).json({ message: '申请提交成功', rental: newRental });
+      const status = item.requireApproval === false ? 'approved' : 'pending';
+      const newRental = { id: String(nextRentalId++), userId: req.user.id, itemId, itemCode: item.code, itemName: item.name, quantity, startDate: new Date(startDate), endDate: new Date(endDate), reason, status, createdAt: new Date() };
+      rentals.push(newRental);
+      if (status === 'approved') { item.availableStock -= quantity; saveData(); }
+      saveData();
+      return res.status(201).json({ message: status === 'approved' ? '租借成功' : '申请提交成功', rental: newRental });
     }
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
