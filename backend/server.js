@@ -56,6 +56,18 @@ function loadData() {
   } catch (err) { console.error('Load error:', err.message); }
 }
 
+async function fixPlaceholderPasswords() {
+  let changed = false;
+  for (const u of users) {
+    if (u.password === '$2a$10$placeholder') {
+      const defaultPass = u.role === 'admin' || u.role === 'superadmin' ? (u.username === 'superadmin' ? 'super123' : 'admin123') : '123456';
+      u.password = await bcrypt.hash(defaultPass, 10);
+      changed = true;
+    }
+  }
+  if (changed) saveData();
+}
+
 // ── Try MongoDB ──────────────────────────────────────────
 async function tryMongo() {
   try {
@@ -823,7 +835,7 @@ async function start() {
     process.exit(1);
   }
   useMongo = await tryMongo();
-  if (!useMongo) loadData();
+  if (!useMongo) { loadData(); await fixPlaceholderPasswords(); }
   app.listen(PORT, () => console.log(`Server running on port ${PORT} (${useMongo ? 'MongoDB' : 'File'})`));
 }
 start();
