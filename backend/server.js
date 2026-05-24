@@ -489,6 +489,17 @@ app.put('/api/rentals/:id/return', auth, admin, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// ── Contact / Admin Info ─────────────────────────────────
+app.get('/api/contact/admin', async (req, res) => {
+  if (useMongo) {
+    const admin = await User.findOne({ role: { $in: ['admin', 'superadmin'] }, active: true }).lean();
+    if (admin) return res.json({ wechat: admin.wechat || '', phone: admin.phone || '', location: '15-234' });
+    return res.json({ wechat: '', phone: '', location: '15-234' });
+  }
+  const admin = users.find(u => (u.role === 'admin' || u.role === 'superadmin') && u.active !== false);
+  return res.json({ wechat: admin?.wechat || '', phone: admin?.phone || '', location: '15-234' });
+});
+
 // ── Admin Routes ─────────────────────────────────────────
 app.get('/api/admin/users', auth, admin, async (req, res) => {
   if (useMongo) {

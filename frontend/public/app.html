@@ -685,7 +685,7 @@ tr:hover td{background:linear-gradient(90deg,rgba(99,102,241,.03),transparent)}
 
 <script>
 const API_URL = '/api';
-let currentUser = null, allItems = [], allRentals = [], myRentals = [], allUsers = [], rentalItemId = null, adminTab = 'approvals';
+let currentUser = null, allItems = [], allRentals = [], myRentals = [], allUsers = [], rentalItemId = null, adminTab = 'approvals', adminContact = null;
 const TK = 'rental_token', UK = 'rental_user';
 function gt(){return localStorage.getItem(TK)}
 function st(t){localStorage.setItem(TK,t)}
@@ -764,6 +764,7 @@ async function loadData(){
     ]);
     allItems=items;myRentals=Array.isArray(rentals)?rentals:[];allUsers=Array.isArray(users)?users:[];
     try{allRentals=await api('GET','/rentals')}catch(e){allRentals=[]}
+    try{adminContact=await api('GET','/contact/admin')}catch(e){}
   }catch(e){}
 }
 
@@ -841,7 +842,9 @@ function renderMyRentals(){
   if(myRentals.length===0){t.innerHTML='';e.classList.remove('hidden');return}
   e.classList.add('hidden');
   const sm={pending:'待审核',approved:'已通过（待线下领取）',rejected:'已拒绝',active:'租借中',returned:'已归还',overdue:'逾期',cancelled:'已取消'};
-  const st={pending:'等待管理员审核',approved:'请联系管理员线下领取物品',rejected:'申请未通过',active:'请在租期内联系管理员归还',returned:'',overdue:'已逾期，请尽快联系管理员',cancelled:'已取消'};
+  const ac=adminContact||{wechat:'',phone:'',location:'15-234'};
+  const contactStr=[ac.wechat&&`微信:${ac.wechat}`,ac.phone&&`电话:${ac.phone}`,`或去 ${ac.location} 领取`].filter(Boolean).join(' | ');
+  const st={pending:'等待管理员审核',approved:contactStr||'请联系管理员线下领取物品',rejected:'申请未通过',active:'请在租期内联系管理员归还',returned:'',overdue:'已逾期，请尽快联系管理员',cancelled:'已取消'};
   t.innerHTML=myRentals.map(r=>`<tr>
     <td><strong>${r.itemName}</strong></td><td>${r.quantity}</td>
     <td>${new Date(r.startDate).toLocaleDateString()}</td><td>${new Date(r.endDate).toLocaleDateString()}</td>
