@@ -1,40 +1,36 @@
-const Dysmsapi = require('@alicloud/dysmsapi20170525');
-const { Config } = require('@alicloud/openapi-core').$OpenApiUtil;
+const nodemailer = require('nodemailer');
 
-const AK = process.env.ALIYUN_SMS_ACCESS_KEY_ID;
-const SK = process.env.ALIYUN_SMS_ACCESS_KEY_SECRET;
-const SIGN = process.env.ALIYUN_SMS_SIGN_NAME;
-const TEMPLATE = process.env.ALIYUN_SMS_TEMPLATE_CODE;
+const host = process.env.EMAIL_HOST || 'smtp.qq.com';
+const port = parseInt(process.env.EMAIL_PORT || '465');
+const user = process.env.EMAIL_USER || '';
+const pass = process.env.EMAIL_PASS || '';
+const fromName = process.env.EMAIL_FROM || '租借系统';
 
-let client = null;
-function getClient() {
-  if (!client && AK && SK) {
-    client = new Dysmsapi.default(new Config({ accessKeyId: AK, accessKeySecret: SK, endpoint: 'dysmsapi.aliyuncs.com' }));
+let transporter = null;
+function getTransporter() {
+  if (!transporter && user && pass) {
+    transporter = nodemailer.createTransport({
+      host, port,
+      secure: port === 465,
+      auth: { user, pass },
+    });
   }
-  return client;
+  return transporter;
 }
 
 function isConfigured() {
-  return !!(AK && SK && SIGN && TEMPLATE);
+  return !!(user && pass);
 }
 
-async function sendSms(phone, templateParam) {
-  if (!isConfigured()) return { success: false, error: 'SMS not configured' };
+async function sendEmail(to, subject, text) {
+  if (!isConfigured()) return { success: false, error: 'Email not configured' };
   try {
-    const c = getClient();
-    const req = new Dysmsapi.SendSmsRequest({
-      phoneNumbers: phone,
-      signName: SIGN,
-      templateCode: TEMPLATE,
-      templateParam: JSON.stringify(templateParam),
-    });
-    const resp = await c.sendSms(req);
-    const body = resp.body;
-    if (body.code === 'OK') return { success: true, bizId: body.bizId };
-    return { success: false, error: body.message || body.code };
+    const t = getTransporter();
+    await t.sendMail({ from: `"${fromName}" <${user}>`, to, subject, text });
+    return { success: true };
   } catch (e) {
-    return { success: false, error: e.message || 'Unknown SMS error' };
+    return { success: false, error: e.message || 'Unknown email error' };
   }
 }
 
-module.exports = { sendSms, isConfigured };
+module.exports = { sendEmail, isConfigured };

@@ -3,7 +3,7 @@ const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
-const sms = require('./services/sms');
+const email = require('./services/sms');
 const fs = require('fs');
 const path = require('path');
 
@@ -192,21 +192,22 @@ function superadmin(req, res, next) {
 // ── Auth Routes ──────────────────────────────────────────
 app.post('/api/auth/register', async (req, res) => {
   try {
-    const { username, password, wechat, phone } = req.body;
+    const { username, password, email, wechat, phone } = req.body;
     if (!username || !password || password.length < 6)
       return res.status(400).json({ error: '学号和密码不能为空，密码至少6位' });
+    const userEmail = email || `${username}@test.com`;
 
     if (useMongo) {
       const exists = await User.findOne({ username });
       if (exists) return res.status(400).json({ error: '学号已存在' });
       const hashed = await bcrypt.hash(password, 10);
-      const user = await new User({ username, email: `${username}@test.com`, password: hashed, role: 'user', active: true, wechat: wechat || '', phone: phone || '', firstRental: true }).save();
+      const user = await new User({ username, email: userEmail, password: hashed, role: 'user', active: true, wechat: wechat || '', phone: phone || '', firstRental: true }).save();
       const token = jwt.sign({ userId: user._id.toString() }, process.env.JWT_SECRET);
       return res.status(201).json({ message: '注册成功', token, user: { id: user._id.toString(), username: user.username, email: user.email, role: user.role } });
     } else {
       if (users.find(u => u.username === username)) return res.status(400).json({ error: '学号已存在' });
       const hashed = await bcrypt.hash(password, 10);
-      const newUser = { id: String(nextUserId++), username, email: `${username}@test.com`, password: hashed, role: 'user', active: true, wechat: wechat || '', phone: phone || '', firstRental: true };
+      const newUser = { id: String(nextUserId++), username, email: userEmail, password: hashed, role: 'user', active: true, wechat: wechat || '', phone: phone || '', firstRental: true };
       users.push(newUser); saveData();
       const token = jwt.sign({ userId: newUser.id }, process.env.JWT_SECRET);
       return res.status(201).json({ message: '注册成功', token, user: { id: newUser.id, username: newUser.username, email: newUser.email, role: newUser.role } });
@@ -496,31 +497,36 @@ app.put('/api/rentals/:id/return', auth, admin, async (req, res) => {
 app.post('/api/rentals/:id/urge', auth, admin, async (req, res) => {
   try {
     if (useMongo) {
-      const rental = await Rental.findById(req.params.id).populate('item', 'name').populate('user', 'username phone');
+      const rental = await Rental.findById(req.params.id).populate('item', 'name').populate('user', 'username phone email');
       if (!rental) return res.status(404).json({ error: '租借记录不存在' });
-      let smsResult = null;
-      if (sms.isConfigured() && rental.user?.phone) {
-        smsResult = await sms.sendSms(rental.user.phone, { name: rental.user.username, item: rental.item?.name || '物品' });
+      let emailResult = null;
+      const userEmail = rental.user?.email;
+      if (email.isConfigured() && userEmail) {
+        emailResult = await email.sendEmail(
+          userEmail,
+          '租借归还提醒',
+          `${rental.user.username}同学，您好！\n\n您租借的「${rental.item?.name || '物品'}」已逾期，请尽快联系管理员线下归还。\n\n——租借系统自动提醒`
+        );
       }
       return res.json({
         message: `已通知用户 ${rental.user?.username || ''} 归还「${rental.item?.name || ''}」`,
-        sms: smsResult ? (smsResult.success ? '短信发送成功' : '短信发送失败: '+smsResult.error) : '未配置短信'
+        email: emailResult ? (emailResult.success ? '邮件发送成功' : '邮件发送失败: '+emailResult.error) : (userEmail ? '未配置邮箱' : '用户无邮箱')
       });
     }
     return res.json({ message: '已通知用户归还' });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// ── SMS Config / Test ────────────────────────────────────
+// ── Email Config / Test ─────────────────────────────────
 app.get('/api/sms/status', auth, admin, async (req, res) => {
-  res.json({ configured: sms.isConfigured() });
+  res.json({ configured: email.isConfigured() });
 });
 app.post('/api/sms/test', auth, admin, async (req, res) => {
-  if (!sms.isConfigured()) return res.status(400).json({ error: '短信未配置，请在环境变量中设置 ALIYUN_SMS_ACCESS_KEY_ID, ALIYUN_SMS_ACCESS_KEY_SECRET, ALIYUN_SMS_SIGN_NAME, ALIYUN_SMS_TEMPLATE_CODE' });
-  const { phone } = req.body;
-  if (!phone) return res.status(400).json({ error: '请提供手机号' });
-  const result = await sms.sendSms(phone, { name: '测试', item: '测试物品' });
-  res.json({ success: result.success, message: result.success ? '短信发送成功' : '发送失败: '+result.error });
+  if (!email.isConfigured()) return res.status(400).json({ error: '邮箱未配置，请在环境变量中设置 EMAIL_USER 和 EMAIL_PASS（QQ邮箱需用授权码）' });
+  const { to } = req.body;
+  if (!to) return res.status(400).json({ error: '请提供收件邮箱' });
+  const result = await email.sendEmail(to, '租借系统测试', '这是一封来自租借系统的测试邮件，配置成功！');
+  res.json({ success: result.success, message: result.success ? '邮件发送成功' : '发送失败: '+result.error });
 });
 
 // ── Seed overdue test data ───────────────────────────────
