@@ -437,6 +437,20 @@ tr:hover td{background:linear-gradient(90deg,rgba(99,102,241,.03),transparent)}
         </div>
         <div id="admin-items" class="admin-tab hidden">
           <button class="btn btn-primary btn-sm" onclick="showAddItemModal()" style="margin-bottom:12px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>新增物品</button>
+          <details class="card" style="margin-bottom:12px;padding:14px 18px;font-size:13px;color:var(--text-muted);line-height:1.8" id="item-guide">
+            <summary style="cursor:pointer;font-weight:600;color:var(--text);font-size:14px;user-select:none">操作指南：如何上传图片和文件</summary>
+            <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
+              <div style="font-weight:600;color:var(--text);margin-bottom:4px">图片URL</div>
+              ① 打开图床网站（如 <a href="https://imgse.com" target="_blank" style="color:var(--primary)">imgse.com</a> 或 <a href="https://sm.ms" target="_blank" style="color:var(--primary)">sm.ms</a>）上传图片<br>
+              ② 上传后复制<strong>图片直链</strong>（URL 以 .jpg/.png/.webp 结尾为佳）<br>
+              ③ 粘贴到新增/编辑表单的「图片URL」输入框中
+              <div style="font-weight:600;color:var(--text);margin-top:10px;margin-bottom:4px">数据手册URL</div>
+              ① 将 PDF/文档上传到网盘（如 百度网盘、阿里云盘、OneDrive）并生成<strong>分享链接</strong><br>
+              ② 或将手册上传到 <a href="https://www.ilovepdf.com" target="_blank" style="color:var(--primary)">ilovepdf.com</a> 等在线服务获取链接<br>
+              ③ 粘贴到新增/编辑表单的「数据手册URL」输入框中<br>
+              ④ 也可以是官方网站的产品介绍/说明页面地址
+            </div>
+          </details>
           <div class="card" style="padding:0">
             <div class="table-wrap" style="border:none">
               <table><thead><tr><th>编码</th><th>名称</th><th>分类</th><th>总/可用</th><th>天数</th><th>状态</th><th>操作</th></tr></thead><tbody id="admin-items-table"></tbody></table>
