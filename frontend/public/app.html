@@ -971,7 +971,7 @@ function renderAdminActive(){
   if(a.length===0){t.innerHTML='';e.classList.remove('hidden');return}
   e.classList.add('hidden');
   t.innerHTML=a.map(r=>`<tr>
-    <td>${r.username||r.userId}</td><td><strong>${r.itemName}</strong></td><td>${r.quantity}</td>
+    <td>${r.userName||r.userId}${r.userNickname?' ('+r.userNickname+')':''}</td><td><strong>${r.itemName}</strong></td><td>${r.quantity}</td>
     <td style="font-size:13px">${new Date(r.startDate).toLocaleDateString()}-${new Date(r.endDate).toLocaleDateString()}</td>
     <td><button class="btn btn-warning btn-sm" onclick="returnRental('${r.id}')">确认归还</button></td>
   </tr>`).join('');

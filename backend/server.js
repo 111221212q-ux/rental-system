@@ -139,7 +139,7 @@ function isValidObjectId(id) {
 async function sRentalM(r) {
   const user = r.user?.username ? r.user : await User.findById(r.user).lean();
   const item = r.item?.name ? r.item : await Item.findById(r.item).lean();
-  return { id: r._id.toString(), userId: (r.user?._id || r.user).toString(), itemId: (r.item?._id || r.item).toString(), itemCode: item?.code || '', itemName: item?.name || '', userName: user?.username || '未知用户', quantity: r.quantity, startDate: r.startDate, endDate: r.endDate, status: r.status, reason: r.notes || '', approvedBy: r.approvedBy?.toString(), approvedAt: r.approvedAt, actualReturnDate: r.returnDate, createdAt: r.createdAt };
+  return { id: r._id.toString(), userId: (r.user?._id || r.user).toString(), itemId: (r.item?._id || r.item).toString(), itemCode: item?.code || '', itemName: item?.name || '', userName: user?.username || '未知用户', userNickname: user?.nickname || '', quantity: r.quantity, startDate: r.startDate, endDate: r.endDate, status: r.status, reason: r.notes || '', approvedBy: r.approvedBy?.toString(), approvedAt: r.approvedAt, actualReturnDate: r.returnDate, createdAt: r.createdAt };
 }
 
 // ── Express ──────────────────────────────────────────────
@@ -498,7 +498,7 @@ app.post('/api/rentals', auth, async (req, res) => {
 
 app.get('/api/rentals', auth, admin, async (req, res) => {
   if (useMongo) {
-    const list = await Rental.find().populate('user', 'username').populate('item', 'name code').sort({ createdAt: -1 }).lean();
+    const list = await Rental.find().populate('user', 'username nickname').populate('item', 'name code').sort({ createdAt: -1 }).lean();
     const result = await Promise.all(list.map(r => sRentalM(r)));
     return res.json(result);
   }
