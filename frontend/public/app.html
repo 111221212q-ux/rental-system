@@ -452,13 +452,22 @@ tr:hover td{background:linear-gradient(90deg,rgba(99,102,241,.03),transparent)}
         </div>
         <div id="admin-stats" class="admin-tab hidden">
           <div class="stats-grid" style="margin-bottom:24px">
-            <div class="stat-card blue"><div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg></div><div class="stat-content"><div class="stat-num" id="admin-stat-items">-</div><div class="stat-label">物品总数</div></div></div>
-            <div class="stat-card green"><div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div><div class="stat-content"><div class="stat-num" id="admin-stat-rentals">-</div><div class="stat-label">总租借</div></div></div>
-            <div class="stat-card purple"><div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div><div class="stat-content"><div class="stat-num" id="admin-stat-users">-</div><div class="stat-label">注册用户</div></div></div>
-            <div class="stat-card orange"><div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div class="stat-content"><div class="stat-num" id="admin-stat-pending">-</div><div class="stat-label">待审核</div></div></div>
+            <div class="stat-card blue" onclick="showStatsDetail('items')" style="cursor:pointer"><div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg></div><div class="stat-content"><div class="stat-num" id="admin-stat-items">-</div><div class="stat-label">物品总数</div></div></div>
+            <div class="stat-card green" onclick="showStatsDetail('rentals')" style="cursor:pointer"><div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div><div class="stat-content"><div class="stat-num" id="admin-stat-rentals">-</div><div class="stat-label">总租借</div></div></div>
+            <div class="stat-card purple" onclick="showStatsDetail('users')" style="cursor:pointer"><div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div><div class="stat-content"><div class="stat-num" id="admin-stat-users">-</div><div class="stat-label">注册用户</div></div></div>
+            <div class="stat-card orange" onclick="showStatsDetail('pending')" style="cursor:pointer"><div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div class="stat-content"><div class="stat-num" id="admin-stat-pending">-</div><div class="stat-label">待审核</div></div></div>
           </div>
-          <div class="card"><div class="card-header"><div><div class="card-title">租借状态分布</div></div></div>
+          <div class="card" style="margin-bottom:24px"><div class="card-header"><div><div class="card-title">租借状态分布</div></div></div>
             <div class="table-wrap"><table><thead><tr><th>状态</th><th>数量</th></tr></thead><tbody id="stats-breakdown"></tbody></table></div>
+          </div>
+          <div class="card hidden" id="stats-detail-card">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+              <div class="card-title" id="stats-detail-title">详细记录</div>
+              <button class="btn btn-outline btn-sm" onclick="document.getElementById('stats-detail-card').classList.add('hidden')">关闭</button>
+            </div>
+            <div class="table-wrap" style="border:none">
+              <table><thead id="stats-detail-thead"></thead><tbody id="stats-detail-tbody"></tbody></table>
+            </div>
           </div>
         </div>
       </div>
@@ -861,7 +870,38 @@ function renderAdminStats(){
   const b={};allRentals.forEach(r=>{b[r.status]=(b[r.status]||0)+1});
   const t=document.getElementById('stats-breakdown'),sm={pending:'待审核',approved:'已通过',rejected:'已拒绝',active:'租借中',returned:'已归还',overdue:'逾期',cancelled:'已取消'};
   if(Object.keys(b).length===0){t.innerHTML='<tr><td colspan="2" style="text-align:center;color:var(--text-muted);padding:24px">暂无数据</td></tr>';return}
-  t.innerHTML=Object.entries(b).map(([k,v])=>`<tr><td>${sm[k]||k}</td><td><strong>${v}</strong> 条</td></tr>`).join('');
+  t.innerHTML=Object.entries(b).map(([k,v])=>`<tr style="cursor:pointer" onclick="showStatsDetail('status','${k}')"><td>${sm[k]||k}</td><td><strong>${v}</strong> 条</td></tr>`).join('');
+}
+
+function showStatsDetail(type,filter){
+  const card=document.getElementById('stats-detail-card');card.classList.remove('hidden');
+  const thead=document.getElementById('stats-detail-thead'),tbody=document.getElementById('stats-detail-tbody'),title=document.getElementById('stats-detail-title');
+  const sm={pending:'待审核',approved:'已通过',rejected:'已拒绝',active:'租借中',returned:'已归还',overdue:'逾期',cancelled:'已取消'};
+
+  if(type==='items'){
+    title.textContent='物品列表 ('+allItems.length+'件)';
+    thead.innerHTML='<tr><th>编码</th><th>名称</th><th>分类</th><th>可用/总库存</th><th>最长天数</th><th>状态</th></tr>';
+    tbody.innerHTML=allItems.map(i=>`<tr><td style="font-size:13px;color:var(--text-muted)">${i.code}</td><td><strong>${i.name}</strong></td><td>${i.category}</td><td>${i.availableStock}/${i.totalStock}</td><td>${i.maxRentalDays}天</td><td><span class="badge badge-${i.status}">${i.status==='available'?'可租借':i.status==='low_stock'?'库存不足':'不可租借'}</span></td></tr>`).join('');
+  }else if(type==='users'){
+    title.textContent='用户列表 ('+allUsers.length+'人)';
+    const rm={superadmin:'超级管理员',admin:'管理员',user:'普通用户'};
+    thead.innerHTML='<tr><th>学号</th><th>微信</th><th>手机</th><th>角色</th><th>状态</th></tr>';
+    tbody.innerHTML=allUsers.map(u=>`<tr><td><strong>${u.username}</strong></td><td>${u.wechat||'-'}</td><td>${u.phone||'-'}</td><td><span class="badge badge-${u.role}">${rm[u.role]||u.role}</span></td><td>${u.active!==false?'<span style="color:var(--success)">正常</span>':'<span style="color:var(--danger)">禁用</span>'}</td></tr>`).join('');
+  }else if(type==='rentals'){
+    title.textContent='租借记录 ('+allRentals.length+'条)';
+    thead.innerHTML='<tr><th>用户</th><th>物品</th><th>数量</th><th>开始</th><th>结束</th><th>状态</th></tr>';
+    tbody.innerHTML=allRentals.map(r=>`<tr><td>${r.username||r.userId}</td><td><strong>${r.itemName}</strong></td><td>${r.quantity}</td><td>${new Date(r.startDate).toLocaleDateString()}</td><td>${new Date(r.endDate).toLocaleDateString()}</td><td><span class="badge badge-${r.status}">${sm[r.status]||r.status}</span></td></tr>`).join('');
+  }else if(type==='pending'){
+    const p=allRentals.filter(r=>r.status==='pending');
+    title.textContent='待审核申请 ('+p.length+'条)';
+    thead.innerHTML='<tr><th>用户</th><th>物品</th><th>数量</th><th>日期</th><th>用途</th></tr>';
+    tbody.innerHTML=p.length===0?'<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:24px">暂无数据</td></tr>':p.map(r=>`<tr><td>${r.username||r.userId}</td><td><strong>${r.itemName}</strong></td><td>${r.quantity}</td><td style="font-size:13px">${new Date(r.startDate).toLocaleDateString()}-${new Date(r.endDate).toLocaleDateString()}</td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;color:var(--text-secondary)" title="${r.reason||''}">${r.reason||'-'}</td></tr>`).join('');
+  }else if(type==='status'){
+    const list=allRentals.filter(r=>r.status===filter);
+    title.textContent=(sm[filter]||filter)+' ('+list.length+'条)';
+    thead.innerHTML='<tr><th>用户</th><th>物品</th><th>数量</th><th>开始</th><th>结束</th><th>状态</th></tr>';
+    tbody.innerHTML=list.length===0?'<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:24px">暂无数据</td></tr>':list.map(r=>`<tr><td>${r.username||r.userId}</td><td><strong>${r.itemName}</strong></td><td>${r.quantity}</td><td>${new Date(r.startDate).toLocaleDateString()}</td><td>${new Date(r.endDate).toLocaleDateString()}</td><td><span class="badge badge-${r.status}">${sm[r.status]||r.status}</span></td></tr>`).join('');
+  }
 }
 
 // Modals
