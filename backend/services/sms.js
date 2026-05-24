@@ -1,37 +1,62 @@
 const nodemailer = require('nodemailer');
 
-const host = process.env.EMAIL_HOST || 'smtp.qq.com';
-const port = parseInt(process.env.EMAIL_PORT || '465');
-const user = process.env.EMAIL_USER || '';
-const pass = process.env.EMAIL_PASS || '';
+const resendKey = process.env.RESEND_API_KEY || '';
+const smtpHost = process.env.EMAIL_HOST || 'smtp.qq.com';
+const smtpPort = parseInt(process.env.EMAIL_PORT || '465');
+const smtpUser = process.env.EMAIL_USER || '';
+const smtpPass = process.env.EMAIL_PASS || '';
 const fromName = process.env.EMAIL_FROM || '租借系统';
+const fromEmail = process.env.EMAIL_FROM_EMAIL || (resendKey ? 'onboarding@resend.dev' : smtpUser);
 
 let transporter = null;
 function getTransporter() {
-  if (!transporter && user && pass) {
+  if (!transporter && smtpUser && smtpPass) {
     transporter = nodemailer.createTransport({
-      host, port,
-      secure: port === 465,
-      auth: { user, pass },
-      connectionTimeout: 10000,
-      greetingTimeout: 10000,
-      socketTimeout: 15000,
+      host: smtpHost, port: smtpPort,
+      secure: smtpPort === 465,
+      auth: { user: smtpUser, pass: smtpPass },
+      connectionTimeout: 8000,
+      greetingTimeout: 8000,
+      socketTimeout: 12000,
     });
   }
   return transporter;
 }
 
 function isConfigured() {
-  return !!(user && pass);
+  return !!(resendKey || (smtpUser && smtpPass));
+}
+
+async function sendViaResend(to, subject, text) {
+  const r = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ from: `"${fromName}" <${fromEmail}>`, to, subject, text }),
+  });
+  const d = await r.json();
+  if (!r.ok) throw new Error(d.message || d.error || 'Resend API error');
+  return d;
 }
 
 async function sendEmail(to, subject, text) {
   if (!isConfigured()) return { success: false, error: 'Email not configured' };
+  // Prefer Resend, fallback to SMTP
+  if (resendKey) {
+    try {
+      await Promise.race([
+        sendViaResend(to, subject, text),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('邮件发送超时（12秒）')), 12000))
+      ]);
+      return { success: true };
+    } catch (e) {
+      return { success: false, error: e.message || 'Unknown Resend error' };
+    }
+  }
   try {
     const t = getTransporter();
-    const result = await Promise.race([
-      t.sendMail({ from: `"${fromName}" <${user}>`, to, subject, text }),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('邮件发送超时（15秒）')), 15000))
+    await Promise.race([
+      t.sendMail({ from: `"${fromName}" <${smtpUser}>`, to, subject, text }),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('邮件发送超时（12秒）')), 12000))
     ]);
     return { success: true };
   } catch (e) {
