@@ -453,14 +453,16 @@ app.put('/api/rentals/:id/return', auth, async (req, res) => {
 // ── Admin Routes ─────────────────────────────────────────
 app.get('/api/admin/users', auth, admin, async (req, res) => {
   if (useMongo) {
-    const list = await User.find().lean();
+    const filter = req.user.role === 'superadmin' ? {} : { role: { $ne: 'superadmin' } };
+    const list = await User.find(filter).lean();
     const result = await Promise.all(list.map(async u => {
       const r = await Rental.find({ user: u._id }).lean();
       return { id: u._id.toString(), username: u.username, email: u.email || '', role: u.role || 'user', wechat: u.wechat || '', phone: u.phone || '', active: u.active !== false, totalRentals: r.length, activeRentals: r.filter(x => ['approved', 'active'].includes(x.status)).length, pendingRentals: r.filter(x => x.status === 'pending').length, lastRental: r.length > 0 ? Math.max(...r.map(x => new Date(x.createdAt).getTime())) : null };
     }));
     return res.json(result);
   }
-  const result = users.map(u => {
+  const visibleUsers = req.user.role === 'superadmin' ? users : users.filter(u => u.role !== 'superadmin');
+  const result = visibleUsers.map(u => {
     const userRentals = rentals.filter(r => r.userId === u.id);
     return { id: u.id, username: u.username, email: u.email || '', role: u.role || 'user', wechat: u.wechat || '', phone: u.phone || '', active: u.active !== false, totalRentals: userRentals.length, activeRentals: userRentals.filter(r => ['approved', 'active'].includes(r.status)).length, pendingRentals: userRentals.filter(r => r.status === 'pending').length, lastRental: userRentals.length > 0 ? Math.max(...userRentals.map(r => new Date(r.createdAt).getTime())) : null };
   });
