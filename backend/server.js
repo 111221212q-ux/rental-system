@@ -3,6 +3,7 @@ const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
+const sms = require('./services/sms');
 const fs = require('fs');
 const path = require('path');
 
@@ -497,10 +498,29 @@ app.post('/api/rentals/:id/urge', auth, admin, async (req, res) => {
     if (useMongo) {
       const rental = await Rental.findById(req.params.id).populate('item', 'name').populate('user', 'username phone');
       if (!rental) return res.status(404).json({ error: '租借记录不存在' });
-      return res.json({ message: `已通知用户 ${rental.user?.username || ''} 归还「${rental.item?.name || ''}」` });
+      let smsResult = null;
+      if (sms.isConfigured() && rental.user?.phone) {
+        smsResult = await sms.sendSms(rental.user.phone, { name: rental.user.username, item: rental.item?.name || '物品' });
+      }
+      return res.json({
+        message: `已通知用户 ${rental.user?.username || ''} 归还「${rental.item?.name || ''}」`,
+        sms: smsResult ? (smsResult.success ? '短信发送成功' : '短信发送失败: '+smsResult.error) : '未配置短信'
+      });
     }
     return res.json({ message: '已通知用户归还' });
   } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── SMS Config / Test ────────────────────────────────────
+app.get('/api/sms/status', auth, admin, async (req, res) => {
+  res.json({ configured: sms.isConfigured() });
+});
+app.post('/api/sms/test', auth, admin, async (req, res) => {
+  if (!sms.isConfigured()) return res.status(400).json({ error: '短信未配置，请在环境变量中设置 ALIYUN_SMS_ACCESS_KEY_ID, ALIYUN_SMS_ACCESS_KEY_SECRET, ALIYUN_SMS_SIGN_NAME, ALIYUN_SMS_TEMPLATE_CODE' });
+  const { phone } = req.body;
+  if (!phone) return res.status(400).json({ error: '请提供手机号' });
+  const result = await sms.sendSms(phone, { name: '测试', item: '测试物品' });
+  res.json({ success: result.success, message: result.success ? '短信发送成功' : '发送失败: '+result.error });
 });
 
 // ── Seed overdue test data ───────────────────────────────
