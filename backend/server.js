@@ -9,6 +9,7 @@ const path = require('path');
 
 let mongoose, User, Item, Rental, Comment;
 let useMongo = false;
+let mongoError = '';
 
 // ── JSON File Storage ────────────────────────────────────
 const DATA_FILE = path.join(__dirname, 'data.json');
@@ -113,6 +114,7 @@ async function tryMongo() {
     }
     return true;
   } catch (e) {
+    mongoError = e.message;
     console.log('MongoDB not available (' + e.message + '), using JSON file storage');
     return false;
   }
@@ -824,7 +826,7 @@ app.get('/api/health', async (_, res) => {
     const [uc, ic, rc] = await Promise.all([User.countDocuments(), Item.countDocuments(), Rental.countDocuments()]);
     return res.json({ status: 'ok', timestamp: new Date(), users: uc, items: ic, rentals: rc, emailConfigured: email.isConfigured(), canReachInternet });
   }
-  res.json({ status: 'ok', timestamp: new Date(), users: users.length, items: items.length, rentals: rentals.length, emailConfigured: email.isConfigured(), canReachInternet });
+  res.json({ status: 'ok', timestamp: new Date(), users: users.length, items: items.length, rentals: rentals.length, emailConfigured: email.isConfigured(), canReachInternet, mongoError: mongoError || null });
 });
 
 // ── Start ────────────────────────────────────────────────
