@@ -27,6 +27,7 @@ async function sendEmail(to, subject, text) {
           from: `"${fromName}" <${fromEmail}>`,
           to, subject,
           html: `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="font-family:sans-serif;white-space:pre-wrap">${text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>')}</body></html>`,
+          headers: { 'Content-Type': 'text/html; charset=UTF-8' },
         }),
         signal: controller.signal,
       });
