@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const rateLimit = require('express-rate-limit');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const fs = require('fs');
@@ -137,6 +138,24 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, '../frontend/public'), { index: false }));
 
 app.get('/', (_, res) => res.sendFile(path.join(__dirname, '../frontend/public/app.html')));
+
+// ── Rate Limiting ──────────────────────────────────────────
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: { error: '请求过于频繁，请15分钟后再试' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+const apiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 120,
+  message: { error: '请求过于频繁，请稍后再试' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use('/api/auth', authLimiter);
+app.use('/api', apiLimiter);
 
 // ── Auth Middleware ───────────────────────────────────────
 function auth(req, res, next) {

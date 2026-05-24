@@ -322,6 +322,19 @@ tr:hover td{background:linear-gradient(90deg,rgba(99,102,241,.03),transparent)}
   .stats-grid{grid-template-columns:1fr}
   .login-card-body{padding:20px 20px 28px}
 }
+/* ── Breakout Game ────────────────────────────────────────── */
+.game-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;z-index:9999}
+.game-box{background:#1a1a2e;border-radius:16px;padding:24px;position:relative;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.game-box canvas{display:block;border-radius:8px;background:#16213e}
+.game-box .game-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;color:#fff}
+.game-box .game-header h3{font-size:16px;font-weight:700;margin:0}
+.game-box .game-header .game-score{font-size:14px;color:#e94560;font-weight:600}
+.game-box .game-header .game-lives{font-size:14px;color:#ffd700}
+.game-close{background:none;border:none;color:#888;font-size:20px;cursor:pointer;padding:0 4px;line-height:1}
+.game-close:hover{color:#fff}
+.game-over-msg{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#fff;text-align:center;pointer-events:none;z-index:10}
+.game-over-msg h2{font-size:28px;margin:0 0 8px}
+.game-over-msg p{font-size:14px;opacity:.8}
 </style>
 </head>
 <body>
@@ -627,6 +640,23 @@ tr:hover td{background:linear-gradient(90deg,rgba(99,102,241,.03),transparent)}
         <button class="btn btn-primary btn-lg" onclick="handleRegister()">注册</button>
         <p class="login-footer-text">已有账号？<a href="#" onclick="showLogin()">点击登录</a></p>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Breakout Game Easter Egg ───────────────────────────── -->
+<div id="game-overlay" class="game-overlay hidden" onclick="if(event.target===this)closeGame()">
+  <div class="game-box">
+    <div class="game-header">
+      <h3>🧱 打砖块</h3>
+      <span class="game-score" id="game-score">得分: 0</span>
+      <span class="game-lives" id="game-lives">❤️❤️❤️</span>
+      <button class="game-close" onclick="closeGame()">✕</button>
+    </div>
+    <canvas id="game-canvas" width="600" height="400"></canvas>
+    <div class="game-over-msg hidden" id="game-over-msg">
+      <h2 id="game-result">🎉 你赢了！</h2>
+      <p id="game-result-sub"></p>
     </div>
   </div>
 </div>
@@ -1114,7 +1144,119 @@ async function init(){
   const u=gu(),t=gt();
   if(u&&t){currentUser=u;enterMain()}
 }
-document.addEventListener('keydown',e=>{if(e.key==='Enter'&&!document.getElementById('login-form').classList.contains('hidden'))handleLogin()});
+
+// ── Breakout Game 🎮 ────────────────────────────────────────
+let gameRunning = false, gameAnimId = null;
+const game = { paddle: { x: 250, w: 80, h: 12 }, ball: { x: 300, y: 370, r: 7, dx: 4, dy: -4, speed: 4 }, bricks: [], score: 0, lives: 3, cols: 8, rows: 5, running: false };
+const BRICK_COLORS = ['#e94560','#f77f00','#ffd700','#2ec4b6','#4361ee'];
+function initGame() {
+  const c = document.getElementById('game-canvas'), g = game;
+  g.score = 0; g.lives = 3; g.ball.x = 300; g.ball.y = 370; g.ball.dx = 4; g.ball.dy = -4;
+  g.paddle.x = 250; g.bricks = []; g.running = false;
+  document.getElementById('game-over-msg').classList.add('hidden');
+  document.getElementById('game-score').textContent = '得分: 0';
+  document.getElementById('game-lives').textContent = '❤️❤️❤️';
+  for (let r = 0; r < g.rows; r++)
+    for (let col = 0; col < g.cols; col++)
+      g.bricks.push({ x: col * 72 + 12, y: r * 28 + 12, w: 64, h: 22, alive: true, color: BRICK_COLORS[r % BRICK_COLORS.length] });
+  if (gameAnimId) { cancelAnimationFrame(gameAnimId); gameAnimId = null; }
+  gameRunning = true;
+  tickGame();
+}
+function tickGame() {
+  if (!gameRunning) return;
+  const c = document.getElementById('game-canvas'), ctx = c.getContext('2d'), g = game;
+  g.paddle.x = Math.max(0, Math.min(c.width - g.paddle.w, g.paddle.x));
+  if (g.running) {
+    g.ball.x += g.ball.dx; g.ball.y += g.ball.dy;
+    if (g.ball.x - g.ball.r < 0 || g.ball.x + g.ball.r > c.width) g.ball.dx = -g.ball.dx;
+    if (g.ball.y - g.ball.r < 0) g.ball.dy = -g.ball.dy;
+    if (g.ball.y + g.ball.r > c.height) { g.lives--; document.getElementById('game-lives').textContent = '❤️'.repeat(Math.max(0,g.lives)) + '🖤'.repeat(Math.max(0,3-g.lives));
+      if (g.lives <= 0) { endGame(false); return; }
+      g.ball.x = 300; g.ball.y = 370; g.ball.dx = 4 * (Math.random() > .5 ? 1 : -1); g.ball.dy = -4; g.running = false; }
+    if (g.ball.dy > 0 && g.ball.y + g.ball.r >= 390 && g.ball.y - g.ball.r <= 400 && g.ball.x >= g.paddle.x && g.ball.x <= g.paddle.x + g.paddle.w) {
+      g.ball.dy = -g.ball.speed; g.ball.dx = ((g.ball.x - g.paddle.x - g.paddle.w/2) / (g.paddle.w/2)) * g.ball.speed; }
+    for (let b of g.bricks) {
+      if (!b.alive) continue;
+      if (g.ball.x + g.ball.r > b.x && g.ball.x - g.ball.r < b.x + b.w && g.ball.y + g.ball.r > b.y && g.ball.y - g.ball.r < b.y + b.h) {
+        b.alive = false; g.score += 10;
+        document.getElementById('game-score').textContent = '得分: ' + g.score;
+        const overlapX = Math.min(g.ball.x + g.ball.r - b.x, b.x + b.w - g.ball.x + g.ball.r);
+        const overlapY = Math.min(g.ball.y + g.ball.r - b.y, b.y + b.h - g.ball.y + g.ball.r);
+        if (overlapX < overlapY) g.ball.dx = -g.ball.dx; else g.ball.dy = -g.ball.dy;
+        if (g.bricks.every(b2 => !b2.alive)) { endGame(true); return; }
+        break;
+      }
+    }
+  }
+  ctx.clearRect(0, 0, c.width, c.height);
+  ctx.fillStyle = '#1a1a2e'; ctx.fillRect(0, 0, c.width, c.height);
+  for (let b of g.bricks) {
+    if (!b.alive) continue;
+    ctx.fillStyle = b.color; ctx.beginPath(); ctx.roundRect(b.x, b.y, b.w, b.h, 4); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.15)'; ctx.beginPath(); ctx.roundRect(b.x+2, b.y+2, b.w-4, b.h/3, 2); ctx.fill();
+  }
+  ctx.fillStyle = '#e94560'; ctx.beginPath(); ctx.roundRect(g.paddle.x, 390, g.paddle.w, g.paddle.h, 6); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.2)'; ctx.beginPath(); ctx.roundRect(g.paddle.x+4, 392, g.paddle.w-8, 4, 2); ctx.fill();
+  ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(g.ball.x, g.ball.y, g.ball.r, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.4)'; ctx.beginPath(); ctx.arc(g.ball.x-2, g.ball.y-2, g.ball.r/2, 0, Math.PI * 2); ctx.fill();
+  if (!g.running && g.lives > 0) { ctx.fillStyle = 'rgba(255,255,255,0.5)'; ctx.font = '16px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('点击或按空格开始', 300, 200); }
+  gameAnimId = requestAnimationFrame(tickGame);
+}
+function endGame(won) {
+  game.running = false; gameRunning = false;
+  if (gameAnimId) { cancelAnimationFrame(gameAnimId); gameAnimId = null; }
+  const msg = document.getElementById('game-over-msg');
+  document.getElementById('game-result').textContent = won ? '🎉 你赢了！' : '💀 游戏结束';
+  document.getElementById('game-result-sub').textContent = won ? '恭喜通关！得分: ' + game.score : '最终得分: ' + game.score;
+  msg.classList.remove('hidden');
+}
+function openGame() {
+  document.getElementById('game-overlay').classList.remove('hidden');
+  setTimeout(initGame, 50);
+}
+function closeGame() {
+  gameRunning = false;
+  if (gameAnimId) { cancelAnimationFrame(gameAnimId); gameAnimId = null; }
+  document.getElementById('game-overlay').classList.add('hidden');
+}
+document.addEventListener('keydown', e => {
+  if (!document.getElementById('game-overlay').classList.contains('hidden')) {
+    if (e.key === 'ArrowLeft') { game.paddle.x -= 25; e.preventDefault(); }
+    if (e.key === 'ArrowRight') { game.paddle.x += 25; e.preventDefault(); }
+    if (e.key === ' ' && !game.running && game.lives > 0) { game.running = true; e.preventDefault(); }
+  }
+});
+document.addEventListener('mousemove', e => {
+  if (!document.getElementById('game-overlay').classList.contains('hidden')) {
+    const r = document.getElementById('game-canvas').getBoundingClientRect();
+    game.paddle.x = e.clientX - r.left - game.paddle.w / 2;
+  }
+});
+document.addEventListener('click', e => {
+  if (document.getElementById('game-overlay').classList.contains('hidden')) return;
+  if (!game.running && game.lives > 0 && e.target.closest('.game-box')) game.running = true;
+});
+
+// ── Easter Egg Triggers ──────────────────────────────────────
+// 1. Konami Code: ↑↑↓↓←→←→
+let konamiIdx = 0;
+const KONAMI = ['ArrowUp','ArrowUp','ArrowDown','ArrowDown','ArrowLeft','ArrowRight','ArrowLeft','ArrowRight'];
+document.addEventListener('keydown', e => {
+  if (e.key === KONAMI[konamiIdx]) { konamiIdx++; if (konamiIdx === KONAMI.length) { konamiIdx = 0; toast('🎮 发现隐藏游戏！', 'success'); setTimeout(openGame, 500); } }
+  else konamiIdx = 0;
+});
+// 2. Click sidebar/header title 5 times
+let titleClicks = 0, titleTimer = null;
+document.addEventListener('click', e => {
+  const t = e.target.closest('.sidebar-brand, .sidebar-brand *, .page-header h1, .page-header h1 *');
+  if (!t) { titleClicks = 0; return; }
+  titleClicks++;
+  clearTimeout(titleTimer);
+  titleTimer = setTimeout(() => { titleClicks = 0; }, 2000);
+  if (titleClicks === 3) toast('再点2次解锁彩蛋 🎮', 'success');
+  if (titleClicks >= 5) { titleClicks = 0; setTimeout(openGame, 300); }
+});
 init();
 </script>
 </body>
