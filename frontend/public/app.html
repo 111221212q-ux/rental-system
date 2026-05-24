@@ -1342,12 +1342,12 @@ async function init(){
 
 // ── Breakout Game 🎮 ────────────────────────────────────────
 let gameRunning = false, gameAnimId = null;
-const game = { paddle: { x: 250, w: 80, h: 12 }, ball: { x: 300, y: 370, r: 7, dx: 4, dy: -4, speed: 4 }, bricks: [], score: 0, lives: 3, cols: 8, rows: 5, running: false };
+const game = { paddle: { x: 250, w: 80, h: 12 }, ball: { x: 300, y: 370, r: 7, dx: 2.5, dy: -2.5, speed: 2.5 }, bricks: [], score: 0, lives: 3, cols: 8, rows: 5, running: false, leftPressed: false, rightPressed: false };
 const BRICK_COLORS = ['#e94560','#f77f00','#ffd700','#2ec4b6','#4361ee'];
 function initGame() {
   const c = document.getElementById('game-canvas'), g = game;
-  g.score = 0; g.lives = 3; g.ball.x = 300; g.ball.y = 370; g.ball.dx = 4; g.ball.dy = -4;
-  g.paddle.x = 250; g.bricks = []; g.running = false;
+  g.score = 0; g.lives = 3; g.ball.x = 300; g.ball.y = 370; g.ball.dx = 2.5; g.ball.dy = -2.5;
+  g.paddle.x = 250; g.bricks = []; g.running = false; g.leftPressed = false; g.rightPressed = false;
   document.getElementById('game-over-msg').classList.add('hidden');
   document.getElementById('game-score').textContent = '得分: 0';
   document.getElementById('game-lives').textContent = '❤️❤️❤️';
@@ -1361,6 +1361,9 @@ function initGame() {
 function tickGame() {
   if (!gameRunning) return;
   const c = document.getElementById('game-canvas'), ctx = c.getContext('2d'), g = game;
+  // Continuous paddle movement
+  if (g.leftPressed) g.paddle.x -= 6;
+  if (g.rightPressed) g.paddle.x += 6;
   g.paddle.x = Math.max(0, Math.min(c.width - g.paddle.w, g.paddle.x));
   if (g.running) {
     g.ball.x += g.ball.dx; g.ball.y += g.ball.dy;
@@ -1368,7 +1371,7 @@ function tickGame() {
     if (g.ball.y - g.ball.r < 0) g.ball.dy = -g.ball.dy;
     if (g.ball.y + g.ball.r > c.height) { g.lives--; document.getElementById('game-lives').textContent = '❤️'.repeat(Math.max(0,g.lives)) + '🖤'.repeat(Math.max(0,3-g.lives));
       if (g.lives <= 0) { endGame(false); return; }
-      g.ball.x = 300; g.ball.y = 370; g.ball.dx = 4 * (Math.random() > .5 ? 1 : -1); g.ball.dy = -4; g.running = false; }
+      g.ball.x = 300; g.ball.y = 370; g.ball.dx = g.ball.speed * (Math.random() > .5 ? 1 : -1); g.ball.dy = -g.ball.speed; g.running = false; }
     if (g.ball.dy > 0 && g.ball.y + g.ball.r >= 390 && g.ball.y - g.ball.r <= 400 && g.ball.x >= g.paddle.x && g.ball.x <= g.paddle.x + g.paddle.w) {
       g.ball.dy = -g.ball.speed; g.ball.dx = ((g.ball.x - g.paddle.x - g.paddle.w/2) / (g.paddle.w/2)) * g.ball.speed; }
     for (let b of g.bricks) {
@@ -1417,10 +1420,14 @@ function closeGame() {
 }
 document.addEventListener('keydown', e => {
   if (!document.getElementById('game-overlay').classList.contains('hidden')) {
-    if (e.key === 'ArrowLeft') { game.paddle.x -= 25; e.preventDefault(); }
-    if (e.key === 'ArrowRight') { game.paddle.x += 25; e.preventDefault(); }
+    if (e.key === 'ArrowLeft') { game.leftPressed = true; e.preventDefault(); }
+    if (e.key === 'ArrowRight') { game.rightPressed = true; e.preventDefault(); }
     if (e.key === ' ' && !game.running && game.lives > 0) { game.running = true; e.preventDefault(); }
   }
+});
+document.addEventListener('keyup', e => {
+  if (e.key === 'ArrowLeft') game.leftPressed = false;
+  if (e.key === 'ArrowRight') game.rightPressed = false;
 });
 document.addEventListener('mousemove', e => {
   if (!document.getElementById('game-overlay').classList.contains('hidden')) {
