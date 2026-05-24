@@ -571,8 +571,11 @@ app.put('/api/comments/:id/pin', auth, admin, async (req, res) => {
 app.get('/api/notifications', auth, async (req, res) => {
   const now = new Date();
   const inTwoDays = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000);
+  const isAdmin = req.user.role === 'admin' || req.user.role === 'superadmin';
   if (useMongo) {
-    const active = await Rental.find({ status: { $in: ['approved', 'active'] } }).populate('user', 'username phone').populate('item', 'name').lean();
+    const filter = { status: { $in: ['approved', 'active'] } };
+    if (!isAdmin) filter.user = req.user._id;
+    const active = await Rental.find(filter).populate('user', 'username phone').populate('item', 'name').lean();
     const alerts = [];
     active.forEach(r => {
       const end = new Date(r.endDate);
@@ -585,6 +588,7 @@ app.get('/api/notifications', auth, async (req, res) => {
   const alerts = [];
   rentals.forEach(r => {
     if (r.status !== 'approved' && r.status !== 'active') return;
+    if (!isAdmin && r.userId !== req.user.id) return;
     const end = new Date(r.endDate);
     const u = users.find(x => x.id === r.userId);
     const i = items.find(x => x.id === r.itemId);
