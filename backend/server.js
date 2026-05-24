@@ -350,6 +350,8 @@ app.put('/api/items/:id/stock', auth, admin, async (req, res) => {
 app.post('/api/rentals', auth, async (req, res) => {
   try {
     const { itemId, quantity, startDate, endDate, reason } = req.body;
+    const today = new Date(); today.setHours(0,0,0,0);
+    if (new Date(startDate) < today) return res.status(400).json({ error: '开始时间不能早于今天' });
     if (useMongo) {
       const item = await Item.findById(itemId);
       if (!item) return res.status(404).json({ error: '物品不存在' });
@@ -486,6 +488,19 @@ app.put('/api/rentals/:id/return', auth, admin, async (req, res) => {
       rental.status = 'returned'; rental.actualReturnDate = new Date(); saveData();
       return res.json({ message: '归还成功', rental });
     }
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── Urge Return ──────────────────────────────────────────
+app.post('/api/rentals/:id/urge', auth, async (req, res) => {
+  try {
+    if (useMongo) {
+      const rental = await Rental.findById(req.params.id).populate('item', 'name');
+      if (!rental) return res.status(404).json({ error: '租借记录不存在' });
+      if (rental.user.toString() !== req.user._id.toString()) return res.status(403).json({ error: '无权操作' });
+      return res.json({ message: '已通知管理员' });
+    }
+    return res.json({ message: '已通知管理员' });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 

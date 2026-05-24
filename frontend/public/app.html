@@ -112,6 +112,8 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .btn-danger:hover{box-shadow:0 4px 12px rgba(239,68,68,.4);transform:translateY(-1px)}
 .btn-outline{background:transparent;color:var(--text-secondary);border:1px solid var(--border)}
 .btn-outline:hover{background:var(--bg-muted);border-color:#cbd5e1}
+.btn-warning{background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;box-shadow:0 2px 8px rgba(245,158,11,.3)}
+.btn-warning:hover{box-shadow:0 4px 12px rgba(245,158,11,.4);transform:translateY(-1px)}
 .btn-sm{padding:6px 14px;font-size:13px}
 .btn-sm svg{width:14px;height:14px}
 .btn-lg{padding:11px 32px;font-size:15px}
@@ -622,8 +624,8 @@ tr:hover td{background:linear-gradient(90deg,rgba(99,102,241,.03),transparent)}
     <div class="modal-body">
       <div id="rental-item-info" style="background:var(--bg-muted);border-radius:8px;padding:12px;margin-bottom:16px;font-size:14px"></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-        <div class="form-group"><label class="form-label">开始 *</label><input class="input" id="rental-start" type="date"></div>
-        <div class="form-group"><label class="form-label">结束 *</label><input class="input" id="rental-end" type="date"></div>
+        <div class="form-group"><label class="form-label">开始 *</label><input class="input" id="rental-start" type="date" min=""></div>
+        <div class="form-group"><label class="form-label">结束 *</label><input class="input" id="rental-end" type="date" min=""></div>
       </div>
       <div class="form-group"><label class="form-label">数量</label><select class="input" id="rental-qty"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select></div>
       <div class="form-group"><label class="form-label">用途 *</label><textarea class="input" id="rental-reason" rows="2" placeholder="请说明用途..."></textarea></div>
@@ -841,16 +843,22 @@ function renderMyRentals(){
   const t=document.getElementById('my-rentals-table'),e=document.getElementById('my-rentals-empty');
   if(myRentals.length===0){t.innerHTML='';e.classList.remove('hidden');return}
   e.classList.add('hidden');
+  const now=new Date();
   const sm={pending:'待审核',approved:'已通过（待线下领取）',rejected:'已拒绝',active:'租借中',returned:'已归还',overdue:'逾期',cancelled:'已取消'};
   const ac=adminContact||{wechat:'',phone:'',location:'15-234'};
   const contactStr=[ac.wechat&&`微信:${ac.wechat}`,ac.phone&&`电话:${ac.phone}`,`或去 ${ac.location} 领取`].filter(Boolean).join(' | ');
   const st={pending:'等待管理员审核',approved:contactStr||'请联系管理员线下领取物品',rejected:'申请未通过',active:'请在租期内联系管理员归还',returned:'',overdue:'已逾期，请尽快联系管理员',cancelled:'已取消'};
-  t.innerHTML=myRentals.map(r=>`<tr>
-    <td><strong>${r.itemName}</strong></td><td>${r.quantity}</td>
-    <td>${new Date(r.startDate).toLocaleDateString()}</td><td>${new Date(r.endDate).toLocaleDateString()}</td>
-    <td><span class="badge badge-${r.status}">${sm[r.status]||r.status}</span></td>
-    <td style="font-size:13px;color:var(--text-muted)">${st[r.status]||'-'}</td>
-  </tr>`).join('');
+  t.innerHTML=myRentals.map(r=>{
+    const isOverdue=r.status==='active'&&new Date(r.endDate)<now;
+    const status=isOverdue?'overdue':r.status;
+    const btn=isOverdue?`<button class="btn btn-sm btn-warning" onclick="urgeRental('${r.id}')" style="font-size:12px">催还</button>`:'-';
+    return `<tr ${isOverdue?'style="background:#fef2f2"':''}>
+      <td><strong>${r.itemName}</strong></td><td>${r.quantity}</td>
+      <td style="font-size:13px">${new Date(r.startDate).toLocaleDateString()}</td><td style="font-size:13px">${new Date(r.endDate).toLocaleDateString()}</td>
+      <td><span class="badge badge-${status}">${sm[status]||r.status}</span></td>
+      <td style="font-size:13px;color:var(--text-muted)">${isOverdue?btn:st[r.status]||'-'}</td>
+    </tr>`;
+  }).join('');
 }
 
 // Admin
@@ -1099,8 +1107,8 @@ function renderDetail(){
     const qtyOpts=Array.from({length:Math.min(maxQ,10)},(_,k)=>`<option>${k+1}</option>`).join('');
     rentalForm.innerHTML=`
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-        <div class="form-group"><label class="form-label">开始日期 *</label><input class="input" id="detail-rental-start" type="date"></div>
-        <div class="form-group"><label class="form-label">结束日期 *</label><input class="input" id="detail-rental-end" type="date"></div>
+        <div class="form-group"><label class="form-label">开始日期 *</label><input class="input" id="detail-rental-start" type="date" min=""></div>
+        <div class="form-group"><label class="form-label">结束日期 *</label><input class="input" id="detail-rental-end" type="date" min=""></div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
         <div class="form-group"><label class="form-label">租借数量</label><select class="input" id="detail-rental-qty">${qtyOpts}</select></div>
@@ -1110,6 +1118,8 @@ function renderDetail(){
       </div>
       <div class="form-group"><label class="form-label">用途说明 *</label><textarea class="input" id="detail-rental-reason" rows="2" placeholder="请说明用途..."></textarea></div>
     `;
+    const today=new Date().toISOString().slice(0,10);
+    document.getElementById('detail-rental-start').setAttribute('min',today);document.getElementById('detail-rental-end').setAttribute('min',today);
     document.getElementById('detail-rental-start').valueAsDate=new Date();
     document.getElementById('detail-rental-end').value='';
   }else{
@@ -1125,7 +1135,8 @@ function renderDetail(){
 async function handleDetailRental(){
   const s=document.getElementById('detail-rental-start').value,e=document.getElementById('detail-rental-end').value;
   const q=parseInt(document.getElementById('detail-rental-qty').value),r=document.getElementById('detail-rental-reason').value.trim();
-  if(!s||!e){toast('请选择日期','error');return}if(!r){toast('请填写用途','error');return}if(new Date(e)<=new Date(s)){toast('结束日须晚于开始日','error');return}
+  const today=new Date();today.setHours(0,0,0,0);
+  if(!s||!e){toast('请选择日期','error');return}if(!r){toast('请填写用途','error');return}if(new Date(e)<=new Date(s)){toast('结束日须晚于开始日','error');return}if(new Date(s)<today){toast('开始时间不能早于今天','error');return}
   try{
     await api('POST','/rentals',{itemId:detailItemId,quantity:q,startDate:s,endDate:e,reason:r});
     toast('申请已提交');goBackFromDetail();allItems=await api('GET','/items');myRentals=await api('GET','/rentals/my');renderItems();renderMyRentals();renderDashboard()
@@ -1178,6 +1189,8 @@ async function pinComment(id){
 function showRentalModal(id){
   rentalItemId=id;const i=allItems.find(x=>x.id===id);if(!i)return;
   document.getElementById('rental-item-info').innerHTML=`<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:var(--text-muted)">物品</span><span><strong>${i.name}</strong> (${i.code})</span></div><div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:var(--text-muted)">可用库存</span><span>${i.availableStock}</span></div><div style="display:flex;justify-content:space-between"><span style="color:var(--text-muted)">最长租期</span><span>${i.maxRentalDays}天</span></div>`;
+  const today=new Date().toISOString().slice(0,10);
+  document.getElementById('rental-start').setAttribute('min',today);document.getElementById('rental-end').setAttribute('min',today);
   document.getElementById('rental-start').valueAsDate=new Date();document.getElementById('rental-end').value='';
   document.getElementById('rental-qty').value='1';document.getElementById('rental-reason').value='';
   document.getElementById('rental-modal').classList.remove('hidden');
@@ -1185,14 +1198,18 @@ function showRentalModal(id){
 function closeRentalModal(){document.getElementById('rental-modal').classList.add('hidden')}
 async function handleApplyRental(){
   const s=document.getElementById('rental-start').value,e=document.getElementById('rental-end').value,q=parseInt(document.getElementById('rental-qty').value),r=document.getElementById('rental-reason').value.trim();
-  if(!s||!e){toast('请选择日期','error');return}if(!r){toast('请填写用途','error');return}if(new Date(e)<=new Date(s)){toast('结束日须晚于开始日','error');return}
+  const today=new Date();today.setHours(0,0,0,0);
+  if(!s||!e){toast('请选择日期','error');return}if(!r){toast('请填写用途','error');return}if(new Date(e)<=new Date(s)){toast('结束日须晚于开始日','error');return}if(new Date(s)<today){toast('开始时间不能早于今天','error');return}
   try{
     await api('POST','/rentals',{itemId:rentalItemId,quantity:q,startDate:s,endDate:e,reason:r});
     toast('申请已提交');closeRentalModal();myRentals=await api('GET','/rentals/my');allItems=await api('GET','/items');renderMyRentals();renderDashboard()
   }catch(e){toast(e.message,'error')}
 }
+	async function urgeRental(id){
+	  try{await api('POST','/rentals/'+id+'/urge');toast('已通知管理员催还')}catch(e){toast(e.message,'error')}
+	}
 
-async function changeUserRole(id,role){
+	async function changeUserRole(id,role){
   try{await api('PUT','/admin/users/'+id+'/role',{role});toast(role==='admin'?'已升为管理员':'已降为普通用户');allUsers=await api('GET','/admin/users');renderAdminUsers()}catch(e){toast(e.message,'error')}
 }
 async function toggleUserStatus(id,active){
