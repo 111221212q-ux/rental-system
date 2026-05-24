@@ -62,7 +62,8 @@ async function tryMongo() {
     Item = require('./models/Item');
     Rental = require('./models/Rental');
     Comment = require('./models/Comment');
-    const mongoURI = process.env.MONGODB_URI || 'mongodb+srv://111221212q_db_user:njh.6f%40PNSL%21gYx@cluster0.jqph8ma.mongodb.net/rental-system?appName=Cluster0';
+    if (!process.env.MONGODB_URI) { console.log('MONGODB_URI not set, skipping MongoDB'); return; }
+    const mongoURI = process.env.MONGODB_URI;
     await mongoose.connect(mongoURI, { serverSelectionTimeoutMS: 15000 });
     useMongo = true;
     console.log('Using MongoDB');
@@ -126,7 +127,12 @@ async function sRentalM(r) {
 
 // ── Express ──────────────────────────────────────────────
 const app = express();
-app.use(cors({ origin: (_, cb) => cb(null, true) }));
+const ALLOWED_ORIGINS = [
+  'https://rental-system-production-f530.up.railway.app',
+  'http://localhost:5000',
+  'http://localhost:3000',
+];
+app.use(cors({ origin: (origin, cb) => cb(null, ALLOWED_ORIGINS.includes(origin) || !origin) }));
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '../frontend/public'), { index: false }));
 
@@ -137,7 +143,7 @@ function auth(req, res, next) {
   try {
     const token = req.header('Authorization')?.replace('Bearer ', '');
     if (!token) return res.status(401).json({ error: 'No authentication token provided' });
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
     if (useMongo) {
       User.findById(decoded.userId).lean().then(user => {
         if (!user || !user.active) return res.status(401).json({ error: 'User not found or inactive' });
@@ -175,14 +181,14 @@ app.post('/api/auth/register', async (req, res) => {
       if (exists) return res.status(400).json({ error: '学号已存在' });
       const hashed = await bcrypt.hash(password, 10);
       const user = await new User({ username, email: `${username}@test.com`, password: hashed, role: 'user', active: true, wechat: wechat || '', phone: phone || '', firstRental: true }).save();
-      const token = jwt.sign({ userId: user._id.toString() }, process.env.JWT_SECRET || 'your-secret-key');
+      const token = jwt.sign({ userId: user._id.toString() }, process.env.JWT_SECRET);
       return res.status(201).json({ message: '注册成功', token, user: { id: user._id.toString(), username: user.username, email: user.email, role: user.role } });
     } else {
       if (users.find(u => u.username === username)) return res.status(400).json({ error: '学号已存在' });
       const hashed = await bcrypt.hash(password, 10);
       const newUser = { id: String(nextUserId++), username, email: `${username}@test.com`, password: hashed, role: 'user', active: true, wechat: wechat || '', phone: phone || '', firstRental: true };
       users.push(newUser); saveData();
-      const token = jwt.sign({ userId: newUser.id }, process.env.JWT_SECRET || 'your-secret-key');
+      const token = jwt.sign({ userId: newUser.id }, process.env.JWT_SECRET);
       return res.status(201).json({ message: '注册成功', token, user: { id: newUser.id, username: newUser.username, email: newUser.email, role: newUser.role } });
     }
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -199,21 +205,15 @@ app.post('/api/auth/login', async (req, res) => {
       if (!user.active) return res.status(401).json({ error: '账号已被禁用' });
       const match = await bcrypt.compare(password, user.password);
       if (!match) return res.status(401).json({ error: '学号或密码错误' });
-      const token = jwt.sign({ userId: user._id.toString() }, process.env.JWT_SECRET || 'your-secret-key');
+      const token = jwt.sign({ userId: user._id.toString() }, process.env.JWT_SECRET);
       return res.json({ message: '登录成功', token, user: { id: user._id.toString(), username: user.username, email: user.email, role: user.role } });
     } else {
       const user = users.find(u => u.username === username);
       if (!user) return res.status(401).json({ error: '学号或密码错误' });
       if (!user.active) return res.status(401).json({ error: '账号已被禁用' });
       const match = await bcrypt.compare(password, user.password);
-      if (!match) {
-        // Fallback: plaintext comparison for old data
-        if (password !== user.password) return res.status(401).json({ error: '学号或密码错误' });
-        // Upgrade to hash
-        user.password = await bcrypt.hash(password, 10);
-        saveData();
-      }
-      const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET || 'your-secret-key');
+      if (!match) return res.status(401).json({ error: '学号或密码错误' });
+      const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET);
       return res.json({ message: '登录成功', token, user: { id: user.id, username: user.username, email: user.email, role: user.role } });
     }
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -611,6 +611,10 @@ app.get('/api/health', async (_, res) => {
 // ── Start ────────────────────────────────────────────────
 const PORT = process.env.PORT || 5000;
 async function start() {
+  if (!process.env.JWT_SECRET) {
+    console.error('FATAL: JWT_SECRET environment variable is not set');
+    process.exit(1);
+  }
   useMongo = await tryMongo();
   if (!useMongo) loadData();
   app.listen(PORT, () => console.log(`Server running on port ${PORT} (${useMongo ? 'MongoDB' : 'File'})`));
