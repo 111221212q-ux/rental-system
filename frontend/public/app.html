@@ -813,7 +813,7 @@ async function handleLogin(){
   if(!disableBtn(btn,'登录中...'))return;
   try{
     const d=await api('POST','/auth/login',{username:u,password:p});
-    st(d.token);su(d.user);currentUser=d.user;enterMain();
+    st(d.token);su(d.user);currentUser=d.user;enterMain();loadContactInfo();
   }catch(e){
     enableBtn(btn);
     errEl.innerHTML='⚠️ '+e.message;errEl.classList.remove('hidden');
@@ -1408,7 +1408,21 @@ async function loadContactInfo(){
     const r=await api('GET','/contact/admin');
     const txt=[r.wechat&&'微信:'+r.wechat,r.phone&&'电话:'+r.phone,'地点:'+(r.location||'15-234')].filter(Boolean).join(' | ');
     document.getElementById('help-contact-text').textContent=txt||'暂无';
-    document.getElementById('sidebar-contact').innerHTML='📞 '+(txt.replace(/地点:/g,'')||'暂无联系方式');�\x9a\x82\xe6\x97\xa0\xe8\x81\x94\xe7\xb3\xbb\xe6\x96\xb9\xe5\xbc\x8f';
+    document.getElementById('sidebar-contact').innerHTML='📞 '+(txt.replace(/地点:/g,'')||'暂无联系方式');
+
+  }catch(e){}
+}
+// Help modal
+function openHelp(){document.getElementById("help-modal").classList.remove("hidden")}
+function closeHelp(){document.getElementById("help-modal").classList.add("hidden")}
+
+async function loadContactInfo(){
+  try{
+    const r=await api('GET','/contact/admin');
+    const txt=[r.wechat&&'微信:'+r.wechat,r.phone&&'电话:'+r.phone,'地点:'+(r.location||'15-234')].filter(Boolean).join(' | ');
+    document.getElementById('help-contact-text').textContent=txt||'暂无';
+    document.getElementById('sidebar-contact').innerHTML='📞 '+(txt.replace(/地点:/g,'')||'暂无联系方式');
+
   }catch(e){}
 }
 // Help modal
