@@ -545,7 +545,8 @@ tr:hover td{background:linear-gradient(90deg,rgba(99,102,241,.03),transparent)}
             <div class="stat-card orange" onclick="showStatsDetail('pending')" style="cursor:pointer"><div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div class="stat-content"><div class="stat-num" id="admin-stat-pending">-</div><div class="stat-label">待审核</div></div></div>
             <div class="stat-card red" onclick="showStatsDetail('overdue')" style="cursor:pointer"><div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div class="stat-content"><div class="stat-num" id="admin-stat-overdue">-</div><div class="stat-label">逾期</div></div></div>
           </div>
-          <div class="card" style="margin-bottom:24px;padding:14px 18px;font-size:13px" id="sms-config-card">
+          <div style="text-align:right;margin-bottom:16px"><button class="btn btn-primary btn-sm" onclick="exportStats()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> 导出 Excel</button></div>
+	          <div class="card" style="margin-bottom:24px;padding:14px 18px;font-size:13px" id="sms-config-card">
             <div style="display:flex;justify-content:space-between;align-items:center">
               <span>邮件催还 <span id="sms-status-badge" style="display:inline-flex;align-items:center;padding:2px 10px;border-radius:100px;font-size:12px;font-weight:500;background:#fee2e2;color:#991b1b">未配置</span></span>
               <div style="display:flex;gap:8px">
@@ -1121,6 +1122,23 @@ function showStatsDetail(type,filter){
       return `<tr style="background:#fef2f2"><td>${r.userName||r.userId}${r.userNickname?' ('+r.userNickname+')':''}</td><td><strong>${r.itemName}</strong></td><td>${r.quantity}</td><td>${new Date(r.endDate).toLocaleDateString()}</td><td><span style="color:#dc2626;font-weight:600">${days}天</span></td><td><button class="btn btn-sm btn-warning" onclick="urgeRental('${r.id}')">催还</button></td></tr>`;
     }).join('');
   }
+}
+
+function exportStats(){
+  const now=new Date();const overdue=allRentals.filter(r=>r.status==='active'&&new Date(r.endDate)<now);
+  const sm={pending:'待审核',approved:'已通过',rejected:'已拒绝',active:'租借中',returned:'已归还',overdue:'逾期',cancelled:'已取消'};
+  let csv='﻿'; // BOM for Excel UTF-8
+  csv+='数据统计报告\n\n';
+  csv+='物品总数,'+allItems.length+'\n总租借,'+allRentals.length+'\n注册用户,'+allUsers.length+'\n待审核,'+allRentals.filter(r=>r.status==='pending').length+'\n逾期,'+overdue.length+'\n\n';
+  csv+='=== 租借记录 ===\n用户,物品,数量,开始日期,结束日期,状态\n';
+  allRentals.forEach(r=>{csv+=(r.userName||r.userId)+','+(r.itemName)+','+r.quantity+','+r.startDate+','+r.endDate+','+(sm[r.status]||r.status)+'\n'});
+  csv+='\n=== 物品列表 ===\n编码,名称,分类,可用/总库存,最长天数\n';
+  allItems.forEach(i=>{csv+=i.code+','+i.name+','+i.category+','+i.availableStock+'/'+i.totalStock+','+i.maxRentalDays+'天\n'});
+  csv+='\n=== 用户列表 ===\n学号,微信,手机,角色\n';
+  const rm={superadmin:'超级管理员',admin:'管理员',user:'普通用户'};
+  allUsers.forEach(u=>{csv+=(u.username)+','+(u.wechat||'')+','+(u.phone||'')+','+(rm[u.role]||u.role)+'\n'});
+  const blob=new Blob([csv],{type:'application/vnd.ms-excel;charset=utf-8'});
+  const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='数据统计'+'.csv';a.click();URL.revokeObjectURL(url)
 }
 
 // Modals
