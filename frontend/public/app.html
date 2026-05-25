@@ -802,8 +802,8 @@ async function api(method,path,body=null){
 }
 
 // Auth
-function showRegister(){document.getElementById('login-form').classList.add('hidden');document.getElementById('register-form').classList.remove('hidden')}
-function showLogin(){document.getElementById('login-form').classList.remove('hidden');document.getElementById('register-form').classList.add('hidden')}
+function showRegister(){document.getElementById('login-form').classList.add('hidden');document.getElementById('register-form').classList.remove('hidden');enableBtn(document.getElementById('login-btn'));enableBtn(document.getElementById('reg-btn'))}
+function showLogin(){document.getElementById('login-form').classList.remove('hidden');document.getElementById('register-form').classList.add('hidden');enableBtn(document.getElementById('login-btn'));enableBtn(document.getElementById('reg-btn'))}
 
 async function handleLogin(){
   const u=document.getElementById('login-username').value.trim(),p=document.getElementById('login-password').value;
@@ -1252,7 +1252,7 @@ async function handleDetailRental(){
   const s=document.getElementById('detail-rental-start').value,e=document.getElementById('detail-rental-end').value;
   const q=parseInt(document.getElementById('detail-rental-qty').value),r=document.getElementById('detail-rental-reason').value.trim();
   const today=new Date();today.setHours(0,0,0,0);
-  if(!s||!e){enableBtn(btn);toast('请选择日期','error');return}if(!r){enableBtn(btn);toast('请填写用途','error');return}if(new Date(e)<=new Date(s)){enableBtn(btn);toast('结束日须晚于开始日','error');return}if(new Date(s)<today){enableBtn(btn);toast('开始时间不能早于今天','error');return}if(!document.getElementById('rental-agree-compensation').checked){enableBtn(btn);toast('请阅读并同意赔偿条款','error');return}if(!document.getElementById('detail-rental-agree-compensation').checked){enableBtn(btn);toast('请阅读并同意赔偿条款','error');return}
+  if(!s||!e){enableBtn(btn);toast('请选择日期','error');return}if(!r){enableBtn(btn);toast('请填写用途','error');return}if(new Date(e)<=new Date(s)){enableBtn(btn);toast('结束日须晚于开始日','error');return}if(new Date(s)<today){enableBtn(btn);toast('开始时间不能早于今天','error');return}if(!document.getElementById('detail-rental-agree-compensation').checked){enableBtn(btn);toast('请阅读并同意赔偿条款','error');return}
   try{
     await api('POST','/rentals',{itemId:detailItemId,quantity:q,startDate:s,endDate:e,reason:r});
     toast('申请已提交');goBackFromDetail();allItems=await api('GET','/items');myRentals=await api('GET','/rentals/my');renderItems();renderMyRentals();renderDashboard()
@@ -1318,7 +1318,7 @@ function closeRentalModal(){document.getElementById('rental-modal').classList.ad
 async function handleApplyRental(){
   const btn=document.querySelector('#rental-modal .btn-primary');
   if(!disableBtn(btn,'提交中...'))return;
-  const s=document.getElementById('rental-start').value,e=document.getElementById('rental-end').value,q=parseInt(document.getElementById('rental-qty').value),r=document.getElementById('rental-reason').value.trim();
+  const s=document.getElementById('rental-start').value,e=document.getElementById('rental-end').value,q=parseInt(document.getElementById('rental-qty').value),r=document.getElementById('rental-reason').value.trim();if(!document.getElementById('rental-agree-compensation').checked){enableBtn(btn);toast('请阅读并同意赔偿条款','error');return}
   const today=new Date();today.setHours(0,0,0,0);
   if(!s||!e){enableBtn(btn);toast('请选择日期','error');return}if(!r){enableBtn(btn);toast('请填写用途','error');return}if(new Date(e)<=new Date(s)){enableBtn(btn);toast('结束日须晚于开始日','error');return}if(new Date(s)<today){enableBtn(btn);toast('开始时间不能早于今天','error');return}
   try{
