@@ -834,7 +834,7 @@ async function handleRegister(){
   }catch(e){enableBtn(btn);toast(e.message,'error')}
 }
 
-function handleLogout(){ca();document.getElementById('login-page').classList.remove('hidden');document.getElementById('main-content').classList.add('hidden')}
+function handleLogout(){ca();document.getElementById('login-page').classList.remove('hidden');document.getElementById('main-content').classList.add('hidden');enableBtn(document.getElementById('login-btn'));enableBtn(document.getElementById('reg-btn'))}
 function toggleSidebar(){document.getElementById('sidebar').classList.toggle('open');document.getElementById('sidebar-overlay').classList.toggle('open')}
 
 async function enterMain(){
@@ -1396,7 +1396,7 @@ async function sendProfileVerification(){
   }
   try{
     await api('POST','/auth/send-verification');
-    toast('验证码已发送');
+    toast('验证码已发送');document.getElementById('prof-email-status').innerHTML='<span style="color:var(--warning)">● 未验证</span>'
     document.getElementById('prof-verify-row').style.display='block';
     btn.textContent='重新发送';btn.disabled=false;
   }catch(e){toast(e.message,'error');btn.disabled=false;btn.textContent='发送验证码'}
