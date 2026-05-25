@@ -679,12 +679,28 @@ app.post('/api/seed-overdue', auth, admin, async (req, res) => {
 // ── Contact / Admin Info ─────────────────────────────────
 app.get('/api/contact/admin', async (req, res) => {
   if (useMongo) {
+    const superadmin = await User.findOne({ role: 'superadmin', active: true }).lean();
+    if (superadmin) return res.json({ wechat: superadmin.wechat || '', phone: superadmin.phone || '', email: superadmin.email || '', location: '15-234' });
     const admin = await User.findOne({ role: 'admin', active: true }).lean();
-    if (admin) return res.json({ wechat: admin.wechat || '', phone: admin.phone || '', location: '15-234' });
-    return res.json({ wechat: '', phone: '', location: '15-234' });
+    if (admin) return res.json({ wechat: admin.wechat || '', phone: admin.phone || '', email: admin.email || '', location: '15-234' });
+    return res.json({ wechat: '', phone: '', email: '', location: '15-234' });
   }
+  const superadmin = users.find(u => u.role === 'superadmin' && u.active !== false);
+  if (superadmin) return res.json({ wechat: superadmin.wechat || '', phone: superadmin.phone || '', email: superadmin.email || '', location: '15-234' });
   const admin = users.find(u => u.role === 'admin' && u.active !== false);
-  return res.json({ wechat: admin?.wechat || '', phone: admin?.phone || '', location: '15-234' });
+  return res.json({ wechat: admin?.wechat || '', phone: admin?.phone || '', email: admin?.email || '', location: '15-234' });
+});
+
+app.get('/api/contact/user/:username', async (req, res) => {
+  const { username } = req.params;
+  if (useMongo) {
+    const user = await User.findOne({ username, active: true }).lean();
+    if (!user) return res.status(404).json({ error: '用户不存在' });
+    return res.json({ wechat: user.wechat || '', phone: user.phone || '', email: user.email || '', nickname: user.nickname || '' });
+  }
+  const user = users.find(u => u.username === username && u.active !== false);
+  if (!user) return res.status(404).json({ error: '用户不存在' });
+  return res.json({ wechat: user.wechat || '', phone: user.phone || '', email: user.email || '', nickname: user.nickname || '' });
 });
 
 // ── Admin Routes ─────────────────────────────────────────
