@@ -1129,9 +1129,9 @@ function showAddItemModal(){
   document.getElementById('new-item-category').value='电子产品';
   document.getElementById('new-item-stock').value='1';document.getElementById('new-item-days').value='7';
   document.getElementById('new-item-max-qty').value='5';document.getElementById('new-item-approval').value='false';document.getElementById('new-item-value').value='0';
-  document.getElementById('add-item-modal').classList.remove('hidden');
+  document.getElementById('add-item-modal').classList.remove('hidden');enableBtn(document.querySelector('#add-item-modal .btn-primary'))
 }
-function closeAddItemModal(){document.getElementById('add-item-modal').classList.add('hidden')}
+function closeAddItemModal(){document.getElementById('add-item-modal').classList.add('hidden');enableBtn(document.querySelector('#add-item-modal .btn-primary'))}
 function showEditItemModal(id){
   const i=allItems.find(x=>x.id===id);if(!i)return;
   document.getElementById('edit-item-id').value=i.id;
@@ -1146,9 +1146,9 @@ function showEditItemModal(id){
   document.getElementById('edit-item-value').value=i.value||0;
   document.getElementById('edit-item-image').value=i.image||'';
   document.getElementById('edit-item-datasheet').value=i.datasheetUrl||'';
-  document.getElementById('edit-item-modal').classList.remove('hidden');
+  document.getElementById('edit-item-modal').classList.remove('hidden');enableBtn(document.querySelector('#edit-item-modal .btn-primary'))
 }
-function closeEditItemModal(){document.getElementById('edit-item-modal').classList.add('hidden')}
+function closeEditItemModal(){document.getElementById('edit-item-modal').classList.add('hidden');enableBtn(document.querySelector('#edit-item-modal .btn-primary'))}
 async function handleEditItem(){
   const btn=document.querySelector('#edit-item-modal .btn-primary');
   if(!disableBtn(btn,'保存中...'))return;
@@ -1312,9 +1312,9 @@ function showRentalModal(id){
   document.getElementById('rental-start').setAttribute('min',today);document.getElementById('rental-end').setAttribute('min',today);
   document.getElementById('rental-start').valueAsDate=new Date();document.getElementById('rental-end').value='';
   document.getElementById('rental-qty').value='1';document.getElementById('rental-reason').value='';
-  document.getElementById('rental-modal').classList.remove('hidden');
+  document.getElementById('rental-modal').classList.remove('hidden');enableBtn(document.querySelector('#rental-modal .btn-primary'))
 }
-function closeRentalModal(){document.getElementById('rental-modal').classList.add('hidden')}
+function closeRentalModal(){document.getElementById('rental-modal').classList.add('hidden');enableBtn(document.querySelector('#rental-modal .btn-primary'))}
 async function handleApplyRental(){
   const btn=document.querySelector('#rental-modal .btn-primary');
   if(!disableBtn(btn,'提交中...'))return;
