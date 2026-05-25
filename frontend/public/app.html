@@ -870,7 +870,7 @@ function switchPage(page){
   document.querySelectorAll('.nav-link').forEach(l=>l.classList.remove('active'));
   const pages=['dashboard','items','my-rentals','profile','admin'];
   const idx=pages.indexOf(page);
-  if(idx>=0){const nl=document.querySelectorAll('.nav-link');if(nl[idx])nl[idx].classList.add('active')}
+  if(idx>=0){const nl=document.querySelectorAll('.nav-link');if(nl[idx>3?idx+1:idx])nl[idx>3?idx+1:idx].classList.add('active')}
   document.getElementById('page-title').textContent=PT[page]||page;
   document.getElementById('sidebar').classList.remove('open');document.getElementById('sidebar-overlay').classList.remove('open');
   renderPage(page);
