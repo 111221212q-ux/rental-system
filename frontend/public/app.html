@@ -809,7 +809,7 @@ async function api(method,path,body=null){
 }
 
 // Auth
-function showRegister(){document.getElementById('login-form').classList.add('hidden');document.getElementById('register-form').classList.remove('hidden');enableBtn(document.getElementById('login-btn'));enableBtn(document.getElementById('reg-btn'))}
+function showRegister(){document.getElementById('login-form').classList.add('hidden');document.getElementById('register-form').classList.remove('hidden');enableBtn(document.getElementById('login-btn'));enableBtn(document.getElementById('reg-btn'));const msg=document.getElementById('reg-verify-msg');if(msg){msg.style.color='';msg.innerHTML='先发送验证码到邮箱，验证后才能注册'}}
 function showLogin(){document.getElementById('login-form').classList.remove('hidden');document.getElementById('register-form').classList.add('hidden');enableBtn(document.getElementById('login-btn'));enableBtn(document.getElementById('reg-btn'))}
 
 async function handleLogin(){
@@ -1423,9 +1423,28 @@ async function verifyProfileEmail(){
 }
 async function regSendVcode(){
   const email=document.getElementById('reg-email').value.trim();
+  const msg=document.getElementById('reg-verify-msg');
   if(!email){toast('请先填写邮箱','error');return}
   const btn=document.getElementById('reg-send-vcode-btn');btn.disabled=true;btn.textContent='发送中...';
-  try{await api('POST','/auth/send-reg-code',{email});toast('验证码已发送到邮箱');document.getElementById('reg-verify-msg').textContent='验证码已发送，请查收邮箱'}catch(e){toast(e.message,'error')}
+  try{
+    await api('POST','/auth/send-reg-code',{email});
+    toast('验证码已发送到邮箱');
+    msg.style.color='var(--success)';
+    msg.textContent='验证码已发送，请查收邮箱（如未收到请检查垃圾邮件）';
+  }catch(e){
+    const err=e.message;
+    if(err.indexOf('已被注册')!==-1){
+      msg.style.color='var(--danger)';
+      msg.innerHTML='此邮箱已注册，请<a href="#" onclick="showLogin()" style="color:var(--primary);text-decoration:underline">点击登录</a>';
+      toast(err,'error');
+    }else if(err.indexOf('未配置')!==-1){
+      msg.style.color='var(--text-muted)';
+      msg.textContent='邮件服务暂不可用，可直接注册';
+      toast(err,'error');
+    }else{
+      toast(err,'error');
+    }
+  }
   btn.disabled=false;btn.textContent='重新发送';
 }
 async function regVerifyCode(){
