@@ -718,12 +718,13 @@ tr:hover td{background:linear-gradient(90deg,rgba(99,102,241,.03),transparent)}
         <div class="form-group"><label class="form-label">昵称</label><input class="input" id="reg-nickname" type="text" placeholder="你的显示昵称"></div>
         <div class="form-group"><label class="form-label">邮箱 *</label><input class="input" id="reg-email" type="email" placeholder="必填，用于接收通知和验证"></div>
         <div class="form-group"><label class="form-label">微信号（选填）</label><input class="input" id="reg-wechat" type="text" placeholder="方便管理员联系"></div>
-        <div id="reg-verify-row" style="margin-bottom:12px">
-          <div style="display:flex;gap:8px;align-items:center">
-            <input class="input" id="reg-vcode" placeholder="输入验证码" style="flex:1;text-align:center;font-size:16px;letter-spacing:4px">
-            <button class="btn btn-outline btn-sm" id="reg-send-vcode-btn" onclick="regSendVcode()" style="white-space:nowrap">发送验证码</button>
-          </div>
-          <div id="reg-verify-msg" style="font-size:12px;color:var(--text-muted);margin-top:4px">先发送验证码到邮箱，验证后才能注册</div>
+        <div class="form-group">
+          <label class="form-label" style="display:flex;justify-content:space-between;align-items:center">
+            <span>验证码</span>
+            <button class="btn btn-outline btn-sm" id="reg-send-vcode-btn" onclick="regSendVcode()" style="font-weight:normal">📨 发送验证码</button>
+          </label>
+          <input class="input" id="reg-vcode" placeholder="请输入6位数字验证码" style="text-align:center;font-size:18px;letter-spacing:8px;font-weight:600">
+          <div id="reg-verify-msg" style="font-size:12px;color:var(--text-muted);margin-top:4px">先点击"发送验证码"，收到后填入上方输入框</div>
         </div>
         <button class="btn btn-primary btn-lg" id="reg-btn" onclick="handleRegister()">注册</button>
         <p class="login-footer-text">已有账号？<a href="#" onclick="showLogin()">点击登录</a></p>
