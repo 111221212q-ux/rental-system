@@ -789,6 +789,32 @@ app.put('/api/admin/users/:id/status', auth, superadmin, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+app.delete('/api/admin/users/:id', auth, superadmin, async (req, res) => {
+  try {
+    if (req.params.id === req.user._id.toString()) return res.status(400).json({ error: '不能删除自己的账号' });
+
+    if (useMongo) {
+      const user = await User.findById(req.params.id);
+      if (!user) return res.status(404).json({ error: '用户不存在' });
+      if (user.role === 'superadmin') return res.status(400).json({ error: '不能删除超级管理员' });
+      // Delete user's rentals and comments
+      await Rental.deleteMany({ user: user._id });
+      if (typeof Comment !== 'undefined') await Comment.deleteMany({ user: user._id });
+      await User.findByIdAndDelete(req.params.id);
+      return res.json({ message: `用户 ${user.username} 已删除` });
+    } else {
+      const idx = users.findIndex(u => u.id === req.params.id);
+      if (idx === -1) return res.status(404).json({ error: '用户不存在' });
+      if (users[idx].role === 'superadmin') return res.status(400).json({ error: '不能删除超级管理员' });
+      // Delete user's rentals
+      rentals = rentals.filter(r => r.userId !== req.params.id);
+      users.splice(idx, 1);
+      saveData();
+      return res.json({ message: '用户已删除' });
+    }
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // ── Comments ─────────────────────────────────────────────
 app.get('/api/items/:id/comments', async (req, res) => {
   if (useMongo) {

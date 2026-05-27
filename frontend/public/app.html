@@ -1072,6 +1072,7 @@ function renderAdminUsers(){
       actions=`<td class="superadmin-only hidden" style="white-space:nowrap"><div style="display:flex;gap:4px">
         <button class="btn btn-outline btn-sm" onclick="changeUserRole('${u.id}','${nextRole}')">${nextLabel}</button>
         <button class="btn btn-sm ${u.active!==false?'btn-danger':'btn-success'}" onclick="toggleUserStatus('${u.id}',${toggleActive})">${toggleLabel}</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteUser('${u.id}','${esc(u.username)}')" style="margin-left:2px">删除</button>
       </div></td>`;
     }
     return `<tr>
@@ -1464,6 +1465,15 @@ async function testSms(){
   try{const r=await api('POST','/sms/test',{to});toast(r.message||(r.success?'发送成功':'发送失败'))}catch(e){toast(e.message,'error')}
 }
 
+
+async function deleteUser(id,username){
+  if(!confirm('确定要删除用户 "'+username+'" 吗？\n\n此操作将同时删除该用户的所有租借记录和评论，不可恢复！'))return;
+  try{
+    const r=await api('DELETE','/admin/users/'+id);
+    toast(r.message||'用户已删除');
+    allUsers=allUsers.filter(u=>u.id!==id);renderUsers();renderAdminStats();
+  }catch(e){toast(e.message,'error')}
+}
 async function loadContactInfo(){
   try{
     const r=await api('GET','/contact/admin');
