@@ -846,7 +846,7 @@ async function handleRegister(){
   if(!e){enableBtn(btn);toast('请输入邮箱','error');return}
   try{
     const d=await api('POST','/auth/register',{username:u,password:p,email:e,nickname:n||undefined,wechat:w,phone:ph});
-    st(d.token);su(d.user);currentUser=d.user;toast('注册成功，请验证邮箱');document.getElementById('verify-modal').classList.remove('hidden');
+    st(d.token);su(d.user);currentUser=d.user;if(d.needsVerification){toast('注册成功，请验证邮箱');document.getElementById('verify-modal').classList.remove('hidden')}else{toast('注册成功');enterMain()}
   }catch(e){enableBtn(btn);toast(e.message,'error')}
 }
 

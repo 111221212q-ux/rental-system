@@ -236,7 +236,8 @@ app.post('/api/auth/register', async (req, res) => {
           emailService.sendEmail(email, '邮箱验证', `您好！您注册租借系统的验证码为：${code}\n\n验证码有效期为10分钟，请勿泄露。\n——租借系统`);
         }
       } catch (_) {}
-      return res.status(201).json({ message: '注册成功', token, user: { id: user._id.toString(), username: user.username, email: user.email, role: user.role, nickname: user.nickname || '', wechat: user.wechat || '', phone: user.phone || '', department: user.department || '' } });
+      const needsVerification = useMongo && emailService.isConfigured();
+      return res.status(201).json({ message: '注册成功', token, needsVerification, user: { id: user._id.toString(), username: user.username, email: user.email, role: user.role, nickname: user.nickname || '', wechat: user.wechat || '', phone: user.phone || '', department: user.department || '' } });
     } else {
       if (users.find(u => u.username === username)) return res.status(400).json({ error: '学号已存在' });
       if (users.find(u => u.email === email)) return res.status(400).json({ error: '邮箱已被注册' });
@@ -244,7 +245,7 @@ app.post('/api/auth/register', async (req, res) => {
       const newUser = { id: String(nextUserId++), username, email, password: hashed, role: 'user', active: true, nickname: nickname || '', wechat: wechat || '', phone: phone || '', firstRental: true, emailVerified: false };
       users.push(newUser); saveData();
       const token = jwt.sign({ userId: newUser.id }, process.env.JWT_SECRET, { expiresIn: '7d' });
-      return res.status(201).json({ message: '注册成功', token, user: { id: newUser.id, username: newUser.username, email: newUser.email, role: newUser.role, nickname: newUser.nickname, wechat: newUser.wechat, phone: newUser.phone, department: newUser.department } });
+      return res.status(201).json({ message: '注册成功', token, needsVerification: false, user: { id: newUser.id, username: newUser.username, email: newUser.email, role: newUser.role, nickname: newUser.nickname, wechat: newUser.wechat, phone: newUser.phone, department: newUser.department } });
     }
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
