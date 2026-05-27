@@ -38,6 +38,7 @@ let rentals = [
   { id: '2', userId: '3', itemId: '3', itemCode: 'PJ003', itemName: '投影仪', quantity: 1, startDate: '2024-05-21', endDate: '2024-05-21', status: 'pending', createdAt: '2024-05-20', reason: '会议演示' },
 ];
 let nextRentalId = 3;
+const regVerificationCodes = new Map(); // email -> { code, expires } for pre-registration
 
 function saveData() {
   try { fs.writeFileSync(DATA_FILE, JSON.stringify({ users, items, rentals, nextUserId, nextRentalId }, null, 2), 'utf8'); }
@@ -212,12 +213,42 @@ function superadmin(req, res, next) {
 }
 
 // ── Auth Routes ──────────────────────────────────────────
+app.post('/api/auth/send-reg-code', async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: '请输入邮箱' });
+    if (!emailService.isConfigured()) return res.status(400).json({ error: '邮件服务未配置' });
+    // Check email not already registered
+    if (useMongo) {
+      const exists = await User.findOne({ email });
+      if (exists) return res.status(400).json({ error: '该邮箱已被注册' });
+    } else if (users.find(u => u.email === email)) {
+      return res.status(400).json({ error: '该邮箱已被注册' });
+    }
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    regVerificationCodes.set(email, { code, expires: Date.now() + 600000 }); // 10 min expiry
+    const result = await emailService.sendEmail(email, '邮箱验证', `您好！您注册租借系统的验证码为：${code}\n\n验证码有效期为10分钟，请勿泄露。\n——租借系统`);
+    if (!result.success) return res.status(500).json({ error: '验证码发送失败: ' + (result.error || '') });
+    res.json({ message: '验证码已发送到您的邮箱' });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 app.post('/api/auth/register', async (req, res) => {
   try {
-    const { username, password, email, nickname, wechat, phone } = req.body;
+    const { username, password, email, nickname, wechat, phone, verificationCode } = req.body;
     if (!username || !password || password.length < 6)
       return res.status(400).json({ error: '学号和密码不能为空，密码至少6位' });
     if (!email) return res.status(400).json({ error: '邮箱为必填项' });
+
+    // If email service is configured, verify the pre-registration code
+    if (emailService.isConfigured()) {
+      if (!verificationCode) return res.status(400).json({ error: '请先获取并输入验证码' });
+      const stored = regVerificationCodes.get(email);
+      if (!stored) return res.status(400).json({ error: '请先获取验证码' });
+      if (Date.now() > stored.expires) { regVerificationCodes.delete(email); return res.status(400).json({ error: '验证码已过期，请重新获取' }); }
+      if (stored.code !== verificationCode) return res.status(400).json({ error: '验证码错误' });
+      regVerificationCodes.delete(email); // code used, clean up
+    }
 
     if (useMongo) {
       const exists = await User.findOne({ username });
@@ -225,27 +256,17 @@ app.post('/api/auth/register', async (req, res) => {
       const emailExists = await User.findOne({ email });
       if (emailExists) return res.status(400).json({ error: '邮箱已被注册' });
       const hashed = await bcrypt.hash(password, 10);
-      const user = await new User({ username, email, password: hashed, role: 'user', active: true, nickname: nickname || '', wechat: wechat || '', phone: phone || '', firstRental: true }).save();
+      const user = await new User({ username, email, password: hashed, role: 'user', active: true, nickname: nickname || '', wechat: wechat || '', phone: phone || '', firstRental: true, emailVerified: emailService.isConfigured() }).save();
       const token = jwt.sign({ userId: user._id.toString() }, process.env.JWT_SECRET, { expiresIn: '7d' });
-      // Send verification email
-      try {
-        const code = String(Math.floor(100000 + Math.random() * 900000));
-        user.emailVerificationCode = code;
-        await user.save();
-        if (emailService.isConfigured()) {
-          emailService.sendEmail(email, '邮箱验证', `您好！您注册租借系统的验证码为：${code}\n\n验证码有效期为10分钟，请勿泄露。\n——租借系统`);
-        }
-      } catch (_) {}
-      const needsVerification = useMongo && emailService.isConfigured();
-      return res.status(201).json({ message: '注册成功', token, needsVerification, user: { id: user._id.toString(), username: user.username, email: user.email, role: user.role, nickname: user.nickname || '', wechat: user.wechat || '', phone: user.phone || '', department: user.department || '' } });
+      return res.status(201).json({ message: '注册成功', token, user: { id: user._id.toString(), username: user.username, email: user.email, role: user.role, nickname: user.nickname || '', wechat: user.wechat || '', phone: user.phone || '', department: user.department || '' } });
     } else {
       if (users.find(u => u.username === username)) return res.status(400).json({ error: '学号已存在' });
       if (users.find(u => u.email === email)) return res.status(400).json({ error: '邮箱已被注册' });
       const hashed = await bcrypt.hash(password, 10);
-      const newUser = { id: String(nextUserId++), username, email, password: hashed, role: 'user', active: true, nickname: nickname || '', wechat: wechat || '', phone: phone || '', firstRental: true, emailVerified: false };
+      const newUser = { id: String(nextUserId++), username, email, password: hashed, role: 'user', active: true, nickname: nickname || '', wechat: wechat || '', phone: phone || '', firstRental: true, emailVerified: emailService.isConfigured() };
       users.push(newUser); saveData();
       const token = jwt.sign({ userId: newUser.id }, process.env.JWT_SECRET, { expiresIn: '7d' });
-      return res.status(201).json({ message: '注册成功', token, needsVerification: false, user: { id: newUser.id, username: newUser.username, email: newUser.email, role: newUser.role, nickname: newUser.nickname, wechat: newUser.wechat, phone: newUser.phone, department: newUser.department } });
+      return res.status(201).json({ message: '注册成功', token, user: { id: newUser.id, username: newUser.username, email: newUser.email, role: newUser.role, nickname: newUser.nickname, wechat: newUser.wechat, phone: newUser.phone, department: newUser.department } });
     }
   } catch (e) { res.status(500).json({ error: e.message }); }
 });

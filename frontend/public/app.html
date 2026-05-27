@@ -720,11 +720,10 @@ tr:hover td{background:linear-gradient(90deg,rgba(99,102,241,.03),transparent)}
         <div class="form-group"><label class="form-label">微信号（选填）</label><input class="input" id="reg-wechat" type="text" placeholder="方便管理员联系"></div>
         <div id="reg-verify-row" style="margin-bottom:12px">
           <div style="display:flex;gap:8px;align-items:center">
-            <input class="input" id="reg-vcode" placeholder="注册后输入验证码" style="flex:1;text-align:center;font-size:16px;letter-spacing:4px" disabled>
-            <button class="btn btn-outline btn-sm" id="reg-send-vcode-btn" onclick="regSendVcode()" style="white-space:nowrap" disabled>发送验证码</button>
+            <input class="input" id="reg-vcode" placeholder="输入验证码" style="flex:1;text-align:center;font-size:16px;letter-spacing:4px">
+            <button class="btn btn-outline btn-sm" id="reg-send-vcode-btn" onclick="regSendVcode()" style="white-space:nowrap">发送验证码</button>
           </div>
-          <button class="btn btn-primary btn-sm" id="reg-verify-btn" onclick="regVerifyCode()" style="margin-top:8px;width:100%" disabled>验证</button>
-          <div id="reg-verify-msg" style="font-size:12px;color:var(--text-muted);margin-top:4px">注册后自动发送验证码</div>
+          <div id="reg-verify-msg" style="font-size:12px;color:var(--text-muted);margin-top:4px">先发送验证码到邮箱，验证后才能注册</div>
         </div>
         <button class="btn btn-primary btn-lg" id="reg-btn" onclick="handleRegister()">注册</button>
         <p class="login-footer-text">已有账号？<a href="#" onclick="showLogin()">点击登录</a></p>
@@ -833,19 +832,14 @@ async function handleRegister(){
   if(!disableBtn(btn,'注册中...'))return;
   const u=document.getElementById('reg-username').value.trim(),p=document.getElementById('reg-password').value;
   const e=document.getElementById('reg-email').value.trim(),n=document.getElementById('reg-nickname').value.trim(),w=document.getElementById('reg-wechat').value.trim();
+  const vc=document.getElementById('reg-vcode').value.trim();
   if(!u||p.length<6){enableBtn(btn);toast('请输入学号，密码至少6位','error');return}
   if(!e){enableBtn(btn);toast('请输入邮箱','error');return}
   try{
-    const d=await api('POST','/auth/register',{username:u,password:p,email:e,nickname:n||undefined,wechat:w});
-    st(d.token);su(d.user);currentUser=d.user;
-    if(d.needsVerification){
-      btn.classList.add('hidden');
-      document.getElementById('reg-vcode').disabled=false;
-      document.getElementById('reg-send-vcode-btn').disabled=false;
-      document.getElementById('reg-verify-btn').disabled=false;
-      document.getElementById('reg-verify-msg').textContent='验证码已发送，请查看邮箱';
-      regSendVcode();
-    }else{toast('注册成功');enterMain()}
+    const body={username:u,password:p,email:e,nickname:n||undefined,wechat:w};
+    if(vc) body.verificationCode=vc;
+    const d=await api('POST','/auth/register',body);
+    st(d.token);su(d.user);currentUser=d.user;toast('注册成功');enterMain();
   }catch(e){enableBtn(btn);toast(e.message,'error')}
 }
 
@@ -1428,22 +1422,15 @@ async function verifyProfileEmail(){
   }catch(e){toast(e.message,'error')}
 }
 async function regSendVcode(){
+  const email=document.getElementById('reg-email').value.trim();
+  if(!email){toast('请先填写邮箱','error');return}
   const btn=document.getElementById('reg-send-vcode-btn');btn.disabled=true;btn.textContent='发送中...';
-  try{await api('POST','/auth/send-verification');toast('验证码已发送')}catch(e){toast(e.message,'error')}
+  try{await api('POST','/auth/send-reg-code',{email});toast('验证码已发送到邮箱');document.getElementById('reg-verify-msg').textContent='验证码已发送，请查收邮箱'}catch(e){toast(e.message,'error')}
   btn.disabled=false;btn.textContent='重新发送';
 }
 async function regVerifyCode(){
-  const code=document.getElementById('reg-vcode').value.trim();
-  if(!code){toast('请输入验证码','error');return}
-  const btn=document.getElementById('reg-verify-btn');btn.disabled=true;btn.textContent='验证中...';
-  try{
-    await api('POST','/auth/verify-email',{code});
-    toast('邮箱验证成功');
-    document.getElementById('register-form').classList.add('hidden');
-    document.getElementById('login-form').classList.remove('hidden');
-    enterMain();
-  }catch(e){toast(e.message,'error')}
-  btn.disabled=false;btn.textContent='验证';
+  // Already verified during registration
+  toast('请直接点击注册按钮','info');
 }
 async function checkSmsStatus(){
   try{const r=await api('GET','/sms/status');const b=document.getElementById('sms-status-badge');if(r.configured){b.textContent='已配置';b.style.background='#d1fae5';b.style.color='#065f46'}else{b.textContent='未配置';b.style.background='#fee2e2';b.style.color='#991b1b'}}catch(e){}
