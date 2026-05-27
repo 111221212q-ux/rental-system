@@ -1072,11 +1072,11 @@ function renderAdminUsers(){
       actions=`<td class="superadmin-only hidden" style="white-space:nowrap"><div style="display:flex;gap:4px">
         <button class="btn btn-outline btn-sm" onclick="changeUserRole('${u.id}','${nextRole}')">${nextLabel}</button>
         <button class="btn btn-sm ${u.active!==false?'btn-danger':'btn-success'}" onclick="toggleUserStatus('${u.id}',${toggleActive})">${toggleLabel}</button>
-        <button class="btn btn-sm btn-danger" onclick="deleteUser('${u.id}','${esc(u.username).replace(/'/g,"&#39;")}')" style="margin-left:2px">删除</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteUser('${u.id}')" style="margin-left:2px">删除</button>
       </div></td>`;
     }
     return `<tr>
-      <td><strong>${u.username}</strong></td><td>${u.email||'-'}</td><td>${u.wechat||'-'}</td><td>${u.phone||'-'}</td>
+      <td><strong>${esc(u.username)}</strong></td><td>${esc(u.email)||'-'}</td><td>${esc(u.wechat)||'-'}</td><td>${esc(u.phone)||'-'}</td>
       <td><span class="badge badge-${u.role}">${rm[u.role]||u.role}</span></td>
       <td>${u.active!==false?'<span style="color:var(--success)">● 正常</span>':'<span style="color:var(--danger)">● 禁用</span>'}</td>
       ${actions}
@@ -1223,12 +1223,12 @@ function renderDetail(){
 
   // Meta grid
   document.getElementById('detail-meta').innerHTML=`
-    <div class="detail-meta-item"><div class="meta-label">编码</div><div class="meta-value" style="font-size:13px">${i.code}</div></div>
-    <div class="detail-meta-item"><div class="meta-label">分类</div><div class="meta-value" style="font-size:13px;color:${colors[i.category]||'#6b7280'}">${i.category}</div></div>
+    <div class="detail-meta-item"><div class="meta-label">编码</div><div class="meta-value" style="font-size:13px">${esc(i.code)}</div></div>
+    <div class="detail-meta-item"><div class="meta-label">分类</div><div class="meta-value" style="font-size:13px;color:${colors[i.category]||'#6b7280'}">${esc(i.category)}</div></div>
     <div class="detail-meta-item"><div class="meta-label">可用 / 总库存</div><div class="meta-value">${i.availableStock} <span style="font-size:12px;color:var(--text-muted);font-weight:400">/ ${i.totalStock}</span></div></div>
     <div class="detail-meta-item"><div class="meta-label">限租数量</div><div class="meta-value" style="font-size:13px">${i.maxRentalQty||5} 件</div></div>
     <div class="detail-meta-item"><div class="meta-label">最长租期</div><div class="meta-value" style="font-size:13px">${i.maxRentalDays} 天</div></div>
-    <div class="detail-meta-item"><div class="meta-label">状态</div><span class="badge badge-${i.status}" style="font-size:12px">${stxt[i.status]||i.status}</span></div>
+    <div class="detail-meta-item"><div class="meta-label">状态</div><span class="badge badge-${i.status}" style="font-size:12px">${esc(stxt[i.status]||i.status)}</span></div>
   `;
 
   // Description
@@ -1308,8 +1308,8 @@ function renderComments(){
       <div class="comment-body">
         <div class="comment-meta">
           ${c.isPinned?'<span style="font-size:11px;background:#fef3c7;color:#92400e;padding:1px 6px;border-radius:100px">📌 置顶</span>':''}
-          <span style="font-weight:600;font-size:14px">${displayName}</span>
-          <span class="badge badge-${c.userRole}" style="font-size:10px">${c.userRole==='superadmin'?'超管':c.userRole==='admin'?'管理':'用户'}</span>
+          <span style="font-weight:600;font-size:14px">${esc(displayName)}</span>
+          <span class="badge badge-${esc(c.userRole)}" style="font-size:10px">${esc(c.userRole)==='superadmin'?'超管':esc(c.userRole)==='admin'?'管理':'用户'}</span>
           <span style="font-size:12px;color:var(--text-muted)">${new Date(c.createdAt).toLocaleDateString()}</span>
         </div>
         <p class="comment-content">${esc(c.content)}</p>
@@ -1339,7 +1339,7 @@ async function pinComment(id){
 
 function showRentalModal(id){
   rentalItemId=id;const i=allItems.find(x=>x.id===id);if(!i)return;
-  document.getElementById('rental-item-info').innerHTML=`<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:var(--text-muted)">物品</span><span><strong>${i.name}</strong> (${i.code})</span></div><div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:var(--text-muted)">可用库存</span><span>${i.availableStock}</span></div><div style="display:flex;justify-content:space-between"><span style="color:var(--text-muted)">最长租期</span><span>${i.maxRentalDays}天</span></div>`;
+  document.getElementById('rental-item-info').innerHTML=`<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:var(--text-muted)">物品</span><span><strong>${esc(i.name)}</strong> (${esc(i.code)})</span></div><div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:var(--text-muted)">可用库存</span><span>${i.availableStock}</span></div><div style="display:flex;justify-content:space-between"><span style="color:var(--text-muted)">最长租期</span><span>${i.maxRentalDays}天</span></div>`;
   const today=new Date().toISOString().slice(0,10);
   document.getElementById('rental-start').setAttribute('min',today);document.getElementById('rental-end').setAttribute('min',today);
   document.getElementById('rental-start').valueAsDate=new Date();document.getElementById('rental-end').value='';
@@ -1466,7 +1466,8 @@ async function testSms(){
 }
 
 
-async function deleteUser(id,username){
+async function deleteUser(id){
+  const _u=allUsers.find(u=>u.id===id);const username=_u?_u.username:id;
   if(deleteUser._busy)return;deleteUser._busy=true;
   if(!confirm('确定要删除用户 "'+username+'" 吗？\n\n此操作将同时删除该用户的所有租借记录和评论，不可恢复！')){deleteUser._busy=false;return}
   try{
@@ -1479,7 +1480,7 @@ async function loadContactInfo(){
   try{
     const r=await api('GET','/contact/admin');
     // Sidebar: show super admin's email and WeChat
-    const sidebarTxt=[r.email&&'邮箱:'+r.email,r.wechat&&'微信:'+r.wechat].filter(Boolean).join(' | ');
+    const sidebarTxt=[r.email&&'邮箱:'+esc(r.email),r.wechat&&'微信:'+esc(r.wechat)].filter(Boolean).join(' | ');
     document.getElementById('sidebar-contact').innerHTML='📞 '+(sidebarTxt||'暂无联系方式');
     // Help modal: show user 2023329301054's contact info
     try{

@@ -22,13 +22,19 @@
   - 不能删除自己和超级管理员
 
 ### 修复
-- **代码审查修复**：修复 6 个 bug
+- **代码审查修复**：3 轮排查修复多处 bug
   - `renderUsers()` → `renderAdminUsers()`（函数名错误）
-  - 删除按钮 onclick 转义单引号，防止 XSS
+  - 删除按钮 onclick 移除用户参数，改为从 `allUsers` 数据源查找，彻底杜绝 XSS
   - `handleRegister()` 中 `errEl` 判空保护
   - `DELETE /api/admin/users/:id` 新增 `isValidObjectId()` 校验
   - 删除用户后同步过滤 `allRentals`，避免统计数据过时
   - 删除按钮防重复提交（`_busy` 标志）
+- **XSS 全面排查修复**：用户可控数据进入 `innerHTML` 时缺少 `esc()` 过滤
+  - 管理员表格：`u.username`、`u.email`、`u.wechat`、`u.phone` 补全 `esc()`
+  - 物品详情弹窗：`i.code`、`i.category`、`i.status` 补全 `esc()`
+  - 评论区：`displayName`、`c.userRole` 补全 `esc()`
+  - 租借弹窗：`i.name`、`i.code` 补全 `esc()`
+  - 侧边栏联系方式：`r.email`、`r.wechat` 补全 `esc()`
 
 ## 2026-05-25 — 推广前准备：赔偿条款、使用说明、联系方式、编辑物品库存
 
