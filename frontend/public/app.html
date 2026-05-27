@@ -832,7 +832,7 @@ async function handleLogin(){
 async function handleRegister(){
   const btn=document.getElementById('reg-btn');
   const errEl=document.getElementById('reg-error');
-  errEl.classList.add('hidden');
+  if(errEl)errEl.classList.add('hidden');
   if(!disableBtn(btn,'注册中...'))return;
   const u=document.getElementById('reg-username').value.trim(),p=document.getElementById('reg-password').value;
   const e=document.getElementById('reg-email').value.trim(),n=document.getElementById('reg-nickname').value.trim(),w=document.getElementById('reg-wechat').value.trim();
@@ -1072,7 +1072,7 @@ function renderAdminUsers(){
       actions=`<td class="superadmin-only hidden" style="white-space:nowrap"><div style="display:flex;gap:4px">
         <button class="btn btn-outline btn-sm" onclick="changeUserRole('${u.id}','${nextRole}')">${nextLabel}</button>
         <button class="btn btn-sm ${u.active!==false?'btn-danger':'btn-success'}" onclick="toggleUserStatus('${u.id}',${toggleActive})">${toggleLabel}</button>
-        <button class="btn btn-sm btn-danger" onclick="deleteUser('${u.id}','${esc(u.username)}')" style="margin-left:2px">删除</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteUser('${u.id}','${esc(u.username).replace(/'/g,"&#39;")}')" style="margin-left:2px">删除</button>
       </div></td>`;
     }
     return `<tr>
@@ -1467,12 +1467,13 @@ async function testSms(){
 
 
 async function deleteUser(id,username){
-  if(!confirm('确定要删除用户 "'+username+'" 吗？\n\n此操作将同时删除该用户的所有租借记录和评论，不可恢复！'))return;
+  if(deleteUser._busy)return;deleteUser._busy=true;
+  if(!confirm('确定要删除用户 "'+username+'" 吗？\n\n此操作将同时删除该用户的所有租借记录和评论，不可恢复！')){deleteUser._busy=false;return}
   try{
     const r=await api('DELETE','/admin/users/'+id);
     toast(r.message||'用户已删除');
-    allUsers=allUsers.filter(u=>u.id!==id);renderUsers();renderAdminStats();
-  }catch(e){toast(e.message,'error')}
+    allUsers=allUsers.filter(u=>u.id!==id);allRentals=allRentals.filter(r=>r.userId!==id);renderAdminUsers();renderAdminStats();
+  }catch(e){toast(e.message,'error')}finally{deleteUser._busy=false}
 }
 async function loadContactInfo(){
   try{

@@ -21,6 +21,15 @@
   - 后端新增 `DELETE /api/admin/users/:id`（仅 superadmin）
   - 不能删除自己和超级管理员
 
+### 修复
+- **代码审查修复**：修复 6 个 bug
+  - `renderUsers()` → `renderAdminUsers()`（函数名错误）
+  - 删除按钮 onclick 转义单引号，防止 XSS
+  - `handleRegister()` 中 `errEl` 判空保护
+  - `DELETE /api/admin/users/:id` 新增 `isValidObjectId()` 校验
+  - 删除用户后同步过滤 `allRentals`，避免统计数据过时
+  - 删除按钮防重复提交（`_busy` 标志）
+
 ## 2026-05-25 — 推广前准备：赔偿条款、使用说明、联系方式、编辑物品库存
 
 ### 新增

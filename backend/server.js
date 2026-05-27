@@ -794,6 +794,7 @@ app.delete('/api/admin/users/:id', auth, superadmin, async (req, res) => {
     if (req.params.id === req.user._id.toString()) return res.status(400).json({ error: '不能删除自己的账号' });
 
     if (useMongo) {
+      if (!isValidObjectId(req.params.id)) return res.status(400).json({ error: '无效的用户ID' });
       const user = await User.findById(req.params.id);
       if (!user) return res.status(404).json({ error: '用户不存在' });
       if (user.role === 'superadmin') return res.status(400).json({ error: '不能删除超级管理员' });
