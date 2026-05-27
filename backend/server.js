@@ -75,6 +75,7 @@ async function fixPlaceholderPasswords() {
 async function tryMongo() {
   try {
     mongoose = require('mongoose');
+    mongoose.set('sanitizeFilter', true); // Prevent NoSQL injection
     User = require('./models/User');
     Item = require('./models/Item');
     Rental = require('./models/Rental');
@@ -389,7 +390,8 @@ app.post('/api/items', auth, admin, async (req, res) => {
       return res.status(201).json({ message: '物品添加成功', item: sItemM(item) });
     } else {
       if (items.find(i => i.code === code)) return res.status(400).json({ error: '物品编码已存在' });
-      const newItem = { id: String(items.length + 1), name, code, category: category || '电子产品', description: description || '', totalStock: parseInt(totalStock), availableStock: parseInt(totalStock), maxRentalDays: parseInt(maxRentalDays) || 7, maxRentalQty: parseInt(maxRentalQty) || 5, requireApproval: requireApproval || false, value: parseInt(value) || 0, image: image || '', datasheetUrl: datasheetUrl || '', status: 'available' };
+      const _ts = parseInt(totalStock);
+      const newItem = { id: String(items.length + 1), name, code, category: category || '电子产品', description: description || '', totalStock: _ts, availableStock: _ts, maxRentalDays: parseInt(maxRentalDays) || 7, maxRentalQty: parseInt(maxRentalQty) || 5, requireApproval: requireApproval || false, value: parseInt(value) || 0, image: image || '', datasheetUrl: datasheetUrl || '', status: _ts <= 0 ? 'unavailable' : 'available' };
       items.push(newItem); saveData();
       return res.status(201).json({ message: '物品添加成功', item: newItem });
     }
@@ -412,7 +414,7 @@ app.put('/api/items/:id', auth, admin, async (req, res) => {
       if (value) item.value = parseInt(value);
       if (image !== undefined) item.image = image;
       if (datasheetUrl !== undefined) item.datasheetUrl = datasheetUrl;
-      if (totalStock) {
+      if (totalStock !== undefined) {
         const newStock = parseInt(totalStock);
         const diff = newStock - item.stock;
         item.stock = newStock;
@@ -433,7 +435,7 @@ app.put('/api/items/:id', auth, admin, async (req, res) => {
       if (value) item.value = parseInt(value);
       if (image !== undefined) item.image = image;
       if (datasheetUrl !== undefined) item.datasheetUrl = datasheetUrl;
-      if (totalStock) {
+      if (totalStock !== undefined) {
         const newStock = parseInt(totalStock);
         const diff = newStock - item.totalStock;
         item.totalStock = newStock;
@@ -523,7 +525,7 @@ app.post('/api/rentals', auth, async (req, res) => {
       const status = item.requireApproval === false ? 'approved' : 'pending';
       const newRental = { id: String(nextRentalId++), userId: req.user.id, itemId, itemCode: item.code, itemName: item.name, quantity, startDate: new Date(startDate), endDate: new Date(endDate), reason, status, createdAt: new Date() };
       rentals.push(newRental);
-      if (status === 'approved') { item.availableStock -= quantity; saveData(); }
+      if (status === 'approved') { item.availableStock -= quantity; item.status = item.availableStock <= 0 ? 'unavailable' : (item.totalStock > 0 && item.availableStock / item.totalStock <= 0.2 ? 'low_stock' : 'available');  saveData(); }
       saveData();
       return res.status(201).json({ message: status === 'approved' ? '租借成功' : '申请提交成功', rental: newRental });
     }
@@ -606,8 +608,13 @@ app.put('/api/rentals/:id/pickup', auth, admin, async (req, res) => {
       if (!rental) return res.status(404).json({ error: '租借记录不存在' });
       if (rental.status !== 'approved') return res.status(400).json({ error: '该记录无需领取' });
       const item = items.find(i => i.id === rental.itemId);
-      if (!item || item.availableStock < rental.quantity) return res.status(400).json({ error: '库存不足' });
-      item.availableStock -= rental.quantity; rental.status = 'active'; rental.pickedAt = new Date();
+      if (!item) return res.status(404).json({ error: '物品不存在' });
+      // For auto-approved items, stock already deducted at creation
+      if (item.requireApproval !== false) {
+        if (item.availableStock < rental.quantity) return res.status(400).json({ error: '库存不足' });
+        item.availableStock -= rental.quantity;
+      }
+      rental.status = 'active'; rental.pickedAt = new Date();
       saveData();
       return res.json({ message: '已确认领取', rental });
     }
@@ -629,9 +636,9 @@ app.put('/api/rentals/:id/return', auth, admin, async (req, res) => {
       if (!rental) return res.status(404).json({ error: '租借记录不存在' });
       if (rental.userId !== req.user.id && req.user.role !== 'admin' && req.user.role !== 'superadmin')
         return res.status(403).json({ error: '无权操作此租借记录' });
-      if (rental.status !== 'approved' && rental.status !== 'active') return res.status(400).json({ error: '该记录无需归还' });
+      if (rental.status !== 'active') return res.status(400).json({ error: '该记录无需归还' });
       const item = items.find(i => i.id === rental.itemId);
-      if (item) item.availableStock += rental.quantity;
+      if (item) { item.availableStock += rental.quantity; item.status = item.availableStock <= 0 ? 'unavailable' : (item.totalStock > 0 && item.availableStock / item.totalStock <= 0.2 ? 'low_stock' : 'available'); }
       rental.status = 'returned'; rental.actualReturnDate = new Date(); saveData();
       return res.json({ message: '归还成功', rental });
     }

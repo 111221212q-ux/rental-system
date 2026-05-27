@@ -35,6 +35,22 @@
   - 评论区：`displayName`、`c.userRole` 补全 `esc()`
   - 租借弹窗：`i.name`、`i.code` 补全 `esc()`
   - 侧边栏联系方式：`r.email`、`r.wechat` 补全 `esc()`
+- **物品卡片点击进入详情**：点击卡片任意位置触发 `showDetailPage()`，查看详情按钮用 `event.stopPropagation()` 防止重复触发；管理员删除按钮同理
+
+### 5 轮代码审查修复
+- **后端安全**：
+  - 添加 `mongoose.set('sanitizeFilter', true)` 全局防止 NoSQL 注入
+  - 物品编辑 `totalStock` 改为 `!== undefined` 判断，允许设为 0
+- **后端逻辑**：
+  - JSON 模式领取物品时，已自动审批的物品不再重复扣减库存
+  - JSON 模式归还只允许 `active` 状态的租借（之前允许 `approved` 状态误归还）
+  - JSON 模式创建/编辑/租借/归还物品时自动计算 `status`（`unavailable`/`low_stock`/`available`）
+- **前端逻辑**：
+  - `setInterval` 时钟在登出时 `clearInterval`，防止定时器泄漏
+  - 管理员操作按钮（通过/拒绝/领取/归还）添加 `_busy` 防重复提交
+  - `handleDetailRental()` 日期比较改用字符串比较，修复时区引起的误判
+  - `init()` 加载时调用 `/auth/me` 验证 token 有效性，过期则跳转登录页
+  - 注册表单新增邮箱格式校验
 
 ## 2026-05-25 — 推广前准备：赔偿条款、使用说明、联系方式、编辑物品库存
 

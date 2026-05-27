@@ -838,7 +838,7 @@ async function handleRegister(){
   const e=document.getElementById('reg-email').value.trim(),n=document.getElementById('reg-nickname').value.trim(),w=document.getElementById('reg-wechat').value.trim();
   const vc=document.getElementById('reg-vcode').value.trim();
   if(!u||p.length<6){enableBtn(btn);errEl.innerHTML='⚠️ 学号不能为空，密码至少6位';errEl.classList.remove('hidden');return}
-  if(!e){enableBtn(btn);errEl.innerHTML='⚠️ 邮箱为必填项';errEl.classList.remove('hidden');return}
+  if(!e){enableBtn(btn);errEl.innerHTML='⚠️ 邮箱为必填项';errEl.classList.remove('hidden');return}if(!/^[^s@]+@[^s@]+.[^s@]+$/.test(e)){enableBtn(btn);errEl.innerHTML='⚠️ 邮箱格式不正确';errEl.classList.remove('hidden');return}
   try{
     const body={username:u,password:p,email:e,nickname:n||undefined,wechat:w};
     if(vc) body.verificationCode=vc;
@@ -847,7 +847,7 @@ async function handleRegister(){
   }catch(e){enableBtn(btn);errEl.innerHTML='⚠️ '+e.message;errEl.classList.remove('hidden')}
 }
 
-function handleLogout(){ca();document.getElementById('login-page').classList.remove('hidden');document.getElementById('main-content').classList.add('hidden');enableBtn(document.getElementById('login-btn'));enableBtn(document.getElementById('reg-btn'))}
+function handleLogout(){if(window._ct){clearInterval(_ct);_ct=null}ca();document.getElementById('login-page').classList.remove('hidden');document.getElementById('main-content').classList.add('hidden');enableBtn(document.getElementById('login-btn'));enableBtn(document.getElementById('reg-btn'))}
 function toggleSidebar(){document.getElementById('sidebar').classList.toggle('open');document.getElementById('sidebar-overlay').classList.toggle('open')}
 
 async function enterMain(){
@@ -858,7 +858,7 @@ async function enterMain(){
   document.getElementById('nav-role').textContent=currentUser.role==='superadmin'?'超级管理员':currentUser.role==='admin'?'管理员':'普通用户';
   const isAdmin=currentUser.role==='admin'||currentUser.role==='superadmin';
   document.querySelectorAll('.admin-only').forEach(el=>{if(isAdmin)el.classList.remove('hidden');else el.classList.add('hidden')});
-  updateDateTime();setInterval(updateDateTime,10000);
+  updateDateTime();if(window._ct)_ct=null;_ct=setInterval(updateDateTime,10000);
   await loadData();switchPage('dashboard');
 }
 
@@ -999,16 +999,17 @@ function renderAdminApprovals(){
 }
 
 async function approveRental(id){
-  if(!confirm('通过此申请？'))return;
-  try{await api('PUT','/rentals/'+id+'/approve',{status:'approved'});toast('已通过');allRentals=await api('GET','/rentals');renderAdminApprovals();loadData()}catch(e){toast(e.message,'error')}
+async function approveRental(id){
+  if(approveRental._b)return;approveRental._b=true;
+  if(!confirm("通过此申请？")){approveRental._b=false;return}
+  try{await api("PUT","/rentals/"+id+"/approve",{status:"approved"});toast("已通过");allRentals=await api("GET","/rentals");renderAdminApprovals();loadData()}catch(e){toast(e.message,"error")}finally{approveRental._b=false}
 }
 async function rejectRental(id){
-  const r=prompt('拒绝原因：');
-  try{await api('PUT','/rentals/'+id+'/reject',{status:'rejected',adminNotes:r||'未通过'});toast('已拒绝');allRentals=await api('GET','/rentals');renderAdminApprovals()}catch(e){toast(e.message,'error')}
+  if(rejectRental._b)return;rejectRental._b=true;
+  const r=prompt("拒绝原因：");if(r===null){rejectRental._b=false;return}
+  try{await api("PUT","/rentals/"+id+"/reject",{status:"rejected",adminNotes:r||"未通过"});toast("已拒绝");allRentals=await api("GET","/rentals");renderAdminApprovals()}catch(e){toast(e.message,"error")}finally{rejectRental._b=false}
 }
-
 function renderAdminPickup(){
-  const p=allRentals.filter(r=>r.status==='approved'),t=document.getElementById('pickup-table'),e=document.getElementById('pickup-empty');
   document.getElementById('pickup-badge').textContent=p.length;
   if(p.length===0){t.innerHTML='';e.classList.remove('hidden');return}
   e.classList.add('hidden');
@@ -1019,10 +1020,10 @@ function renderAdminPickup(){
   </tr>`).join('');
 }
 async function pickupRental(id){
-  if(!confirm('确认该用户已领取物品？'))return;
-  try{await api('PUT','/rentals/'+id+'/pickup');toast('已确认领取');allRentals=await api('GET','/rentals');renderAdminPickup();loadData()}catch(e){toast(e.message,'error')}
+  if(pickupRental._b)return;pickupRental._b=true;
+  if(!confirm("确认该用户已领取物品？")){pickupRental._b=false;return}
+  try{await api("PUT","/rentals/"+id+"/pickup");toast("已确认领取");allRentals=await api("GET","/rentals");renderAdminPickup();loadData()}catch(e){toast(e.message,"error")}finally{pickupRental._b=false}
 }
-function renderAdminActive(){
   const a=allRentals.filter(r=>r.status==='active'),t=document.getElementById('active-table'),e=document.getElementById('active-empty');
   if(a.length===0){t.innerHTML='';e.classList.remove('hidden');return}
   e.classList.add('hidden');
@@ -1033,10 +1034,10 @@ function renderAdminActive(){
   </tr>`).join('');
 }
 async function returnRental(id){
-  if(!confirm('确认已收到归还物品？'))return;
-  try{await api('PUT','/rentals/'+id+'/return');toast('归还成功');allRentals=await api('GET','/rentals');renderAdminActive();loadData()}catch(e){toast(e.message,'error')}
+  if(returnRental._b)return;returnRental._b=true;
+  if(!confirm("确认已收到归还物品？")){returnRental._b=false;return}
+  try{await api("PUT","/rentals/"+id+"/return");toast("归还成功");allRentals=await api("GET","/rentals");renderAdminActive();loadData()}catch(e){toast(e.message,"error")}finally{returnRental._b=false}
 }
-
 function renderAdminItems(){
   document.getElementById('admin-items-table').innerHTML=allItems.map(i=>`<tr>
     <td style="font-size:13px;color:var(--text-muted)">${i.code}</td><td><strong>${i.name}</strong></td>
@@ -1283,8 +1284,8 @@ async function handleDetailRental(){
   if(!disableBtn(btn,'提交中...'))return;
   const s=document.getElementById('detail-rental-start').value,e=document.getElementById('detail-rental-end').value;
   const q=parseInt(document.getElementById('detail-rental-qty').value),r=document.getElementById('detail-rental-reason').value.trim();
-  const today=new Date();today.setHours(0,0,0,0);
-  if(!s||!e){enableBtn(btn);toast('请选择日期','error');return}if(!r){enableBtn(btn);toast('请填写用途','error');return}if(new Date(e)<=new Date(s)){enableBtn(btn);toast('结束日须晚于开始日','error');return}if(new Date(s)<today){enableBtn(btn);toast('开始时间不能早于今天','error');return}if(!document.getElementById('detail-rental-agree-compensation').checked){enableBtn(btn);toast('请阅读并同意赔偿条款','error');return}
+  const today=new Date();today.setHours(0,0,0,0);const todayStr=today.toISOString().slice(0,10);
+  if(!s||!e){enableBtn(btn);toast('请选择日期','error');return}if(!r){enableBtn(btn);toast('请填写用途','error');return}if(new Date(e)<=new Date(s)){enableBtn(btn);toast('结束日须晚于开始日','error');return}if(s<todayStr){enableBtn(btn);toast('开始时间不能早于今天','error');return}if(!document.getElementById('detail-rental-agree-compensation').checked){enableBtn(btn);toast('请阅读并同意赔偿条款','error');return}
   try{
     await api('POST','/rentals',{itemId:detailItemId,quantity:q,startDate:s,endDate:e,reason:r});
     toast('申请已提交');goBackFromDetail();allItems=await api('GET','/items');myRentals=await api('GET','/rentals/my');renderItems();renderMyRentals();renderDashboard()
