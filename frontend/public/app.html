@@ -718,12 +718,13 @@ tr:hover td{background:linear-gradient(90deg,rgba(99,102,241,.03),transparent)}
         <div class="form-group"><label class="form-label">昵称</label><input class="input" id="reg-nickname" type="text" placeholder="你的显示昵称"></div>
         <div class="form-group"><label class="form-label">邮箱 *</label><input class="input" id="reg-email" type="email" placeholder="必填，用于接收通知和验证"></div>
         <div class="form-group"><label class="form-label">微信号（选填）</label><input class="input" id="reg-wechat" type="text" placeholder="方便管理员联系"></div>
-        <div id="reg-verify-row" class="hidden" style="margin-bottom:12px">
+        <div id="reg-verify-row" style="margin-bottom:12px">
           <div style="display:flex;gap:8px;align-items:center">
-            <input class="input" id="reg-vcode" placeholder="输入验证码" style="flex:1;text-align:center;font-size:16px;letter-spacing:4px">
-            <button class="btn btn-outline btn-sm" id="reg-send-vcode-btn" onclick="regSendVcode()" style="white-space:nowrap">发送验证码</button>
+            <input class="input" id="reg-vcode" placeholder="注册后输入验证码" style="flex:1;text-align:center;font-size:16px;letter-spacing:4px" disabled>
+            <button class="btn btn-outline btn-sm" id="reg-send-vcode-btn" onclick="regSendVcode()" style="white-space:nowrap" disabled>发送验证码</button>
           </div>
-          <button class="btn btn-primary btn-sm" id="reg-verify-btn" onclick="regVerifyCode()" style="margin-top:8px;width:100%">验证</button>
+          <button class="btn btn-primary btn-sm" id="reg-verify-btn" onclick="regVerifyCode()" style="margin-top:8px;width:100%" disabled>验证</button>
+          <div id="reg-verify-msg" style="font-size:12px;color:var(--text-muted);margin-top:4px">注册后自动发送验证码</div>
         </div>
         <button class="btn btn-primary btn-lg" id="reg-btn" onclick="handleRegister()">注册</button>
         <p class="login-footer-text">已有账号？<a href="#" onclick="showLogin()">点击登录</a></p>
@@ -839,7 +840,10 @@ async function handleRegister(){
     st(d.token);su(d.user);currentUser=d.user;
     if(d.needsVerification){
       btn.classList.add('hidden');
-      document.getElementById('reg-verify-row').classList.remove('hidden');
+      document.getElementById('reg-vcode').disabled=false;
+      document.getElementById('reg-send-vcode-btn').disabled=false;
+      document.getElementById('reg-verify-btn').disabled=false;
+      document.getElementById('reg-verify-msg').textContent='验证码已发送，请查看邮箱';
       regSendVcode();
     }else{toast('注册成功');enterMain()}
   }catch(e){enableBtn(btn);toast(e.message,'error')}
