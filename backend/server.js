@@ -533,10 +533,17 @@ app.post('/api/rentals', auth, async (req, res) => {
 
 app.get('/api/rentals', auth, admin, async (req, res) => {
   if (useMongo) {
+    // Auto-cancel approved rentals past endDate (never picked up)
+    await Rental.updateMany({ status: 'approved', endDate: { $lt: new Date() } }, { $set: { status: 'cancelled' } });
     const list = await Rental.find().populate('user', 'username nickname').populate('item', 'name code').sort({ createdAt: -1 }).lean();
     const result = await Promise.all(list.map(r => sRentalM(r)));
     return res.json(result);
   }
+  // Auto-cancel expired approved rentals (JSON mode)
+  const now = Date.now();
+  let changed = false;
+  rentals.forEach(r => { if (r.status === 'approved' && new Date(r.endDate).getTime() < now) { r.status = 'cancelled'; changed = true; } });
+  if (changed) saveData();
   const result = rentals.map(r => ({ ...r, userName: users.find(u => u.id === r.userId)?.username || '未知用户' }));
   res.json(result);
 });
