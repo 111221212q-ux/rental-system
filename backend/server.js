@@ -875,6 +875,33 @@ app.post('/api/seed/test-data', auth, admin, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// ── Clean up test data ──────────────────────────────────
+app.post('/api/seed/clean-test', auth, admin, async (req, res) => {
+  try {
+    const testUsernames = ['test001', 'test002', 'test003', 'testreg001'];
+    let deletedUsers = 0, deletedRentals = 0;
+    if (useMongo) {
+      const users = await User.find({ username: { $in: testUsernames } }).lean();
+      const userIds = users.map(u => u._id);
+      const result = await Rental.deleteMany({ user: { $in: userIds } });
+      deletedRentals = result.deletedCount;
+      const del = await User.deleteMany({ _id: { $in: userIds } });
+      deletedUsers = del.deletedCount;
+    } else {
+      const userIds = users.filter(u => testUsernames.includes(u.username)).map(u => u.id);
+      const before = rentals.length;
+      rentals = rentals.filter(r => !userIds.includes(r.userId));
+      deletedRentals = before - rentals.length;
+      const beforeU = users.length;
+      const toDelete = users.filter(u => userIds.includes(u.id));
+      deletedUsers = toDelete.length;
+      users = users.filter(u => !userIds.includes(u.id));
+      saveData();
+    }
+    res.json({ message: `已删除 ${deletedUsers} 个测试用户和 ${deletedRentals} 条相关租借` });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // ── Contact / Admin Info ─────────────────────────────────
 app.get('/api/contact/admin', async (req, res) => {
   if (useMongo) {
