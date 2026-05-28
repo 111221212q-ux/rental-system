@@ -1030,13 +1030,18 @@ function renderAdminPickup(){
 	  t.innerHTML=p.map(r=>{const _n=new Date(),_od=_n>new Date(r.endDate)?' style="background:#fef2f2"':'';return `<tr${_od}>
     <td>${r.userName||r.userId}${r.userNickname?' ('+r.userNickname+')':''}</td><td><strong>${r.itemName}</strong></td><td>${r.quantity}</td>
     <td style="font-size:13px">${new Date(r.startDate).toLocaleDateString()}-${new Date(r.endDate).toLocaleDateString()}${_n>new Date(r.endDate)?`<span style="color:#dc2626;font-weight:600;margin-left:8px">已过期</span>`:``}</td>
-    <td><button class="btn btn-primary btn-sm" onclick="pickupRental('${r.id}')">确认领取</button></td>
+    <td><div style="display:flex;gap:4px">${_n>new Date(r.endDate)?`<button class="btn btn-danger btn-sm" onclick="deleteRental('${r.id}')">删除</button>`:``}<button class="btn btn-primary btn-sm" onclick="pickupRental('${r.id}')">确认领取</button></div></td>
   </tr>`}).join('');
 }
 async function pickupRental(id){
   if(pickupRental._b)return;pickupRental._b=true;
   if(!confirm("确认该用户已领取物品？")){pickupRental._b=false;return}
   try{await api("PUT","/rentals/"+id+"/pickup");toast("已确认领取");allRentals=await api("GET","/rentals");renderAdminPickup();loadData()}catch(e){toast(e.message,"error")}finally{pickupRental._b=false}
+}
+async function deleteRental(id){
+  if(deleteRental._b)return;deleteRental._b=true;
+  if(!confirm("确定删除此租借记录？")){deleteRental._b=false;return}
+  try{await api("DELETE","/rentals/"+id);toast("已删除");allRentals=await api("GET","/rentals");renderAdminPickup();loadData()}catch(e){toast(e.message,"error")}finally{deleteRental._b=false}
 }
 function renderAdminActive(){
   const _now=new Date(),a=allRentals.filter(r=>r.status==='active'||(r.status==='approved'&&new Date(r.endDate)<_now)),t=document.getElementById('active-table'),e=document.getElementById('active-empty');

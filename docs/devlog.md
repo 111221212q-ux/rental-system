@@ -16,6 +16,7 @@
 - **数据统计导出**：CSV 导出新增"严重逾期(>15天)"行
 - **登录报错修复**：`renderAdminPickup` 和 `renderAdminActive` 箭头函数体转换时遗漏 `}`，导致页面白屏无法登录。补回 `}` 后语法验证通过
 - **租借中包含逾期物品**：`renderAdminActive` 筛选条件从 `status==='active'` 改为包含 `status==='approved'` 且已过期的记录；操作按钮根据 `status` 动态显示"确认领取"(approved)或"确认归还"(active)
+- **待领取过期删除按钮**：逾期待领取记录旁新增红色"删除"按钮，调用 `DELETE /api/rentals/:id` 硬删除记录；后端新增对应接口
 
 ## 2026-05-28 — 注册流程重构 & 错误提示优化
 

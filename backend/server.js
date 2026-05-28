@@ -668,6 +668,25 @@ app.post('/api/rentals/:id/urge', auth, admin, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// ── Delete rental ──────────────────────────────────────
+app.delete('/api/rentals/:id', auth, admin, async (req, res) => {
+  try {
+    if (useMongo) {
+      if (!isValidObjectId(req.params.id)) return res.status(400).json({ error: '无效的ID' });
+      const rental = await Rental.findById(req.params.id);
+      if (!rental) return res.status(404).json({ error: '租借记录不存在' });
+      await Rental.deleteOne({ _id: req.params.id });
+      return res.json({ message: '已删除' });
+    } else {
+      const idx = rentals.findIndex(r => r.id === req.params.id);
+      if (idx === -1) return res.status(404).json({ error: '租借记录不存在' });
+      rentals.splice(idx, 1);
+      saveData();
+      return res.json({ message: '已删除' });
+    }
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // ── Email Config / Test ─────────────────────────────────
 app.get('/api/sms/status', auth, admin, async (req, res) => {
   res.json({ configured: emailService.isConfigured() });
