@@ -1031,7 +1031,7 @@ function renderAdminPickup(){
     <td>${r.userName||r.userId}${r.userNickname?' ('+r.userNickname+')':''}</td><td><strong>${r.itemName}</strong></td><td>${r.quantity}</td>
     <td style="font-size:13px">${new Date(r.startDate).toLocaleDateString()}-${new Date(r.endDate).toLocaleDateString()}${_n>new Date(r.endDate)?`<span style="color:#dc2626;font-weight:600;margin-left:8px">已过期</span>`:``}</td>
     <td><button class="btn btn-primary btn-sm" onclick="pickupRental('${r.id}')">确认领取</button></td>
-  </tr>`).join('');
+  </tr>`}).join('');
 }
 async function pickupRental(id){
   if(pickupRental._b)return;pickupRental._b=true;
@@ -1046,7 +1046,7 @@ function renderAdminActive(){
     <td>${r.userName||r.userId}${r.userNickname?' ('+r.userNickname+')':''}</td><td><strong>${r.itemName}</strong></td><td>${r.quantity}</td>
     <td style="font-size:13px">${new Date(r.startDate).toLocaleDateString()}-${new Date(r.endDate).toLocaleDateString()}${_n2>new Date(r.endDate)?`<span style="color:#dc2626;font-weight:600;margin-left:8px">逾期${Math.floor((_n2-new Date(r.endDate))/86400000)}天</span>`:``}</td>
     <td><button class="btn btn-warning btn-sm" onclick="returnRental('${r.id}')">确认归还</button></td>
-  </tr>`).join('');
+  </tr>`}).join('');
 }
 async function returnRental(id){
   if(returnRental._b)return;returnRental._b=true;
