@@ -998,7 +998,7 @@ function switchAdminTab(tab,btn){
 }
 
 function renderAdminApprovals(){
-  const p=allRentals.filter(r=>r.status==='pending'),t=document.getElementById('approvals-table'),e=document.getElementById('approvals-empty');
+  const sq=document.getElementById('search-approvals').value.toLowerCase().trim();const p=allRentals.filter(r=>r.status==='pending'&&(!sq||r.userName?.toLowerCase().includes(sq)||r.userId?.toLowerCase().includes(sq)||r.userNickname?.toLowerCase().includes(sq)||r.itemName?.toLowerCase().includes(sq))),t=document.getElementById('approvals-table'),e=document.getElementById('approvals-empty');
   document.getElementById('approvals-badge').textContent=p.length;
   document.getElementById('pickup-badge').textContent=allRentals.filter(r=>r.status==='approved').length;
   if(p.length===0){t.innerHTML='';e.classList.remove('hidden');return}
@@ -1025,7 +1025,7 @@ async function rejectRental(id){
   try{await api("PUT","/rentals/"+id+"/reject",{status:"rejected",adminNotes:r||"未通过"});toast("已拒绝");allRentals=await api("GET","/rentals");renderAdminApprovals()}catch(e){toast(e.message,"error")}finally{rejectRental._b=false}
 }
 function renderAdminPickup(){
-  const p=allRentals.filter(r=>r.status==='approved'),t=document.getElementById('pickup-table'),e=document.getElementById('pickup-empty');
+  const sq=document.getElementById('search-pickup').value.toLowerCase().trim();const p=allRentals.filter(r=>r.status==='approved'&&(!sq||r.userName?.toLowerCase().includes(sq)||r.userId?.toLowerCase().includes(sq)||r.userNickname?.toLowerCase().includes(sq)||r.itemName?.toLowerCase().includes(sq))),t=document.getElementById('pickup-table'),e=document.getElementById('pickup-empty');
   if(p.length===0){t.innerHTML='';e.classList.remove('hidden');return}
   e.classList.add('hidden');
 	  t.innerHTML=p.map(r=>{const _n=new Date(),_od=_n>new Date(r.endDate)?' style="background:#fef2f2"':'';return `<tr${_od}>
@@ -1045,7 +1045,7 @@ async function deleteRental(id){
   try{await api("DELETE","/rentals/"+id);toast("已删除");allRentals=await api("GET","/rentals");renderAdminPickup();loadData()}catch(e){toast(e.message,"error")}finally{deleteRental._b=false}
 }
 function renderAdminActive(){
-  const a=allRentals.filter(r=>r.status==='active'),t=document.getElementById('active-table'),e=document.getElementById('active-empty');
+  const sq=document.getElementById('search-active').value.toLowerCase().trim();const a=allRentals.filter(r=>r.status==='active'&&(!sq||r.userName?.toLowerCase().includes(sq)||r.userId?.toLowerCase().includes(sq)||r.userNickname?.toLowerCase().includes(sq)||r.itemName?.toLowerCase().includes(sq))),t=document.getElementById('active-table'),e=document.getElementById('active-empty');
   if(a.length===0){t.innerHTML='';e.classList.remove('hidden');return}
   e.classList.add('hidden');
 	  t.innerHTML=a.map(r=>{const _n2=new Date(),_od2=_n2>new Date(r.endDate)?' style="background:#fef2f2"':'';return `<tr${_od2}>
@@ -1060,7 +1060,7 @@ async function returnRental(id){
   try{await api("PUT","/rentals/"+id+"/return");toast("归还成功");allRentals=await api("GET","/rentals");renderAdminActive();loadData()}catch(e){toast(e.message,"error")}finally{returnRental._b=false}
 }
 function renderAdminItems(){
-  document.getElementById('admin-items-table').innerHTML=allItems.map(i=>`<tr>
+  const sq=document.getElementById('search-items').value.toLowerCase().trim();const fi=sq?allItems.filter(i=>i.name?.toLowerCase().includes(sq)):allItems;document.getElementById('admin-items-table').innerHTML=fi.map(i=>`<tr>
     <td style="font-size:13px;color:var(--text-muted)">${i.code}</td><td><strong>${i.name}</strong></td>
     <td>${i.category}</td><td>${i.totalStock}/${i.availableStock}</td><td>${i.maxRentalDays}天</td>
     <td><span class="badge badge-${i.status}">${i.status==='available'?'可租借':i.status==='low_stock'?'库存不足':'不可租借'}</span></td>
@@ -1077,11 +1077,11 @@ async function deleteItem(id){
 }
 
 function renderAdminUsers(){
-  const t=document.getElementById('users-table');
+  const sq=document.getElementById('search-users').value.toLowerCase().trim();const fu=sq?allUsers.filter(u=>u.username?.toLowerCase().includes(sq)||u.nickname?.toLowerCase().includes(sq)||u.email?.toLowerCase().includes(sq)):allUsers;const t=document.getElementById('users-table');
   const isSuper=currentUser&&currentUser.role==='superadmin';
-  if(allUsers.length===0){t.innerHTML='<tr><td colspan="'+(isSuper?'7':'6')+'" style="text-align:center;color:var(--text-muted);padding:24px">暂无数据</td></tr>';return}
+  if(fu.length===0){t.innerHTML='<tr><td colspan="'+(isSuper?'7':'6')+'" style="text-align:center;color:var(--text-muted);padding:24px">无匹配用户</td></tr>';return}
   const rm={superadmin:'超级管理员',admin:'管理员',user:'普通用户'};
-  t.innerHTML=allUsers.map(u=>{
+  t.innerHTML=fu.map(u=>{
     const me=u.id===currentUser.id||u.username===currentUser.username;
     const isOtherSuper=u.role==='superadmin';
     const noEdit=me||isOtherSuper;
