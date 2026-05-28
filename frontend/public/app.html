@@ -743,24 +743,112 @@ tr:hover td{background:linear-gradient(90deg,rgba(99,102,241,.03),transparent)}
 
 <!-- ── <!-- Help Modal -->
 <div id="help-modal" class="modal-overlay hidden" onclick="if(event.target===this)closeHelp()">
-  <div class="modal" style="max-width:560px"><div class="modal-header"><h3>使用说明</h3><button class="modal-close" onclick="closeHelp()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+  <div class="modal" style="max-width:640px"><div class="modal-header"><h3>使用指南</h3><button class="modal-close" onclick="closeHelp()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
     <div class="modal-body" style="font-size:14px;line-height:1.8;color:var(--text-secondary)">
-      <div style="margin-bottom:16px"><strong style="color:var(--text);font-size:15px">📋 如何使用</strong></div>
-      <div style="margin-bottom:12px">
-        <div style="font-weight:600;color:var(--text);margin-bottom:4px">1. 浏览物品</div>
-        <div>在「物品列表」中浏览所有可租用物品，点击卡片查看详情、图片和评论。</div>
+      <div style="display:flex;gap:8px;margin-bottom:16px">
+        <button class="btn btn-sm" id="help-tab-user" onclick="switchHelpTab('user')" style="flex:1;background:var(--primary);color:#fff">用户指南</button>
+        <button class="btn btn-sm btn-outline" id="help-tab-admin" onclick="switchHelpTab('admin')" style="flex:1">管理员指南</button>
       </div>
-      <div style="margin-bottom:12px">
-        <div style="font-weight:600;color:var(--text);margin-bottom:4px">2. 申请租借</div>
-        <div>选择物品，填写用途和租借时间，阅读并同意赔偿条款后提交。</div>
+      <div id="help-content-user">
+        <div style="margin-bottom:12px">
+          <div style="font-weight:600;color:var(--text);margin-bottom:4px">1. 注册与登录</div>
+          <div>• 点击「点击注册」，输入学号、密码（至少6位）、昵称、邮箱<br>
+          • 点击「验证码」发送到邮箱，查收邮件填入6位验证码后提交<br>
+          • 勾选「记住我」可保持登录状态，关闭浏览器后不需重新登录<br>
+          • 登录后在「个人设置」可修改资料和验证邮箱</div>
+        </div>
+        <div style="margin-bottom:12px">
+          <div style="font-weight:600;color:var(--text);margin-bottom:4px">2. 浏览与租借物品</div>
+          <div>• 在「物品列表」浏览所有物品，可用搜索框和分类/状态筛选<br>
+          • 点击卡片任意位置查看详情（图片、描述、评论、数据手册）<br>
+          • 物品标注「需要管理员审核」的需管理员批准，否则自动通过<br>
+          • 点击「申请租借」填写租期、数量、用途，勾选赔偿条款后提交<br>
+          • 注意：租借天数不能超过物品的最长租期，数量不能超过限租数量</div>
+        </div>
+        <div style="margin-bottom:12px">
+          <div style="font-weight:600;color:var(--text);margin-bottom:4px">3. 查看租借状态</div>
+          <div>• 在「我的租借」查看所有记录，状态包括：<br>
+          <span style="display:inline-block;padding:1px 8px;border-radius:4px;font-size:12px;background:#fef3c7;color:#92400e">待审核</span> 等待管理员审批<br>
+          <span style="display:inline-block;padding:1px 8px;border-radius:4px;font-size:12px;background:#dbeafe;color:#1e40af">已通过</span> 审批通过，按提示到线下领取<br>
+          <span style="display:inline-block;padding:1px 8px;border-radius:4px;font-size:12px;background:#dcfce8;color:#166534">租借中</span> 已领取，在租期内使用<br>
+          <span style="display:inline-block;padding:1px 8px;border-radius:4px;font-size:12px;background:#fef2f2;color:#991b1b">逾期</span> 超过归还日期，请尽快联系管理员<br>
+          <span style="display:inline-block;padding:1px 8px;border-radius:4px;font-size:12px;background:#f3f4f6;color:#4b5563">已归还</span> 已归还物品<br>
+          <span style="display:inline-block;padding:1px 8px;border-radius:4px;font-size:12px;background:#f3f4f6;color:#4b5563">已拒绝</span> 申请被驳回</div>
+        </div>
+        <div style="margin-bottom:12px">
+          <div style="font-weight:600;color:var(--text);margin-bottom:4px">4. 仪表盘</div>
+          <div>• 首页显示可租物品、可用库存、我的租借中等统计数据<br>
+          • 逾期提醒栏显示所有已逾期的租借，严重逾期(>15天)深红色高亮<br>
+          • 点击「收起」可折叠提醒列表</div>
+        </div>
+        <div style="margin-bottom:12px">
+          <div style="font-weight:600;color:var(--text);margin-bottom:4px">5. 评论与互动</div>
+          <div>• 在物品详情页下方可发表评论、查看他人评论<br>
+          • 管理员可置顶重要评论</div>
+        </div>
       </div>
-      <div style="margin-bottom:12px">
-        <div style="font-weight:600;color:var(--text);margin-bottom:4px">3. 等待审批</div>
-        <div>提交后在「我的租借」中查看状态。审批通过后，到管理员处线下领取物品。</div>
-      </div>
-      <div style="margin-bottom:12px">
-        <div style="font-weight:600;color:var(--text);margin-bottom:4px">4. 归还</div>
-        <div>在租期内联系管理员线下归还。迟返将影响后续借用。</div>
+      <div id="help-content-admin" class="hidden">
+        <div style="margin-bottom:12px">
+          <div style="font-weight:600;color:var(--text);margin-bottom:4px">管理后台概览</div>
+          <div>管理员登录后点击侧边栏「管理后台」进入。各标签页功能如下：</div>
+        </div>
+        <div style="margin-bottom:12px">
+          <div style="font-weight:600;color:var(--text);margin-bottom:4px">① 待审核</div>
+          <div>• 查看所有待审批的租借申请<br>
+          • 点击「通过」批准申请（可输入备注），点击「拒绝」并填写原因<br>
+          • 搜索框可按用户名或物品名快速查找</div>
+        </div>
+        <div style="margin-bottom:12px">
+          <div style="font-weight:600;color:var(--text);margin-bottom:4px">② 待领取</div>
+          <div>• 已批准但未领取的物品列表<br>
+          • 已过期的申请会自动取消（不计入逾期），不在列表中显示<br>
+          • 学生线下领取后点击「确认领取」，物品库存自动扣减<br>
+          • 搜索框可按用户名或物品名快速查找</div>
+        </div>
+        <div style="margin-bottom:12px">
+          <div style="font-weight:600;color:var(--text);margin-bottom:4px">③ 租借中</div>
+          <div>• 所有正在租借的物品（status=active）<br>
+          • 已过期的物品显示红色背景 + "逾期X天"标记<br>
+          • 学生归还后点击「确认归还」，物品库存自动恢复<br>
+          • 逾期记录可点击「催还」发送邮件通知<br>
+          • 搜索框可按用户名或物品名快速查找</div>
+        </div>
+        <div style="margin-bottom:12px">
+          <div style="font-weight:600;color:var(--text);margin-bottom:4px">④ 物品管理</div>
+          <div>• 查看/新增/编辑/删除物品<br>
+          • 编辑时可修改名称、编码、分类、总库存、最长天数、限租数量等<br>
+          • 可设置物品是否需要管理员审批、填写图片URL和数据手册URL<br>
+          • 搜索框可按物品名快速查找</div>
+        </div>
+        <div style="margin-bottom:12px">
+          <div style="font-weight:600;color:var(--text);margin-bottom:4px">⑤ 用户管理（仅超级管理员）</div>
+          <div>• 查看所有用户信息（学号、邮箱、微信、手机、角色、状态）<br>
+          • 可升降用户角色（普通用户 ↔ 管理员）<br>
+          • 可禁用/启用用户，禁用后用户无法登录<br>
+          • 可删除用户（会同步删除相关租借和评论）<br>
+          • 不能删除自己和其他超级管理员<br>
+          • 搜索框可搜索用户名或邮箱</div>
+        </div>
+        <div style="margin-bottom:12px">
+          <div style="font-weight:600;color:var(--text);margin-bottom:4px">⑥ 数据统计</div>
+          <div>• 查看物品总数、总租借、注册用户、待审核、逾期等统计卡片<br>
+          • 严重逾期(>15天)卡片深红色高亮<br>
+          • 点击统计卡片查看对应详细记录<br>
+          • 租借状态分布表格展示各状态数量，点击可筛选<br>
+          • 「导出 Excel」下载 CSV 格式完整数据报告<br>
+          • 超级管理员可见「生成测试用户/租借」和「清理测试数据」按钮</div>
+        </div>
+        <div style="margin-bottom:12px">
+          <div style="font-weight:600;color:var(--text);margin-bottom:4px">仪表盘提醒</div>
+          <div>• 管理员和用户的仪表盘均显示逾期提醒<br>
+          • 逾期超过15天的记录以深红色标注「严重逾期」<br>
+          • 提醒栏可收起/展开</div>
+        </div>
+        <div style="margin-bottom:12px">
+          <div style="font-weight:600;color:var(--text);margin-bottom:4px">邮件催还</div>
+          <div>• 在数据统计页可测试邮件配置<br>
+          • 在租借中对逾期记录点击「催还」发送归还提醒邮件</div>
+        </div>
       </div>
       <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border);font-size:13px" id="help-contact">
         <strong style="color:var(--text)">联系方式</strong><br>
@@ -1543,6 +1631,13 @@ async function loadContactInfo(){
 }
 function openHelp(){document.getElementById("help-modal").classList.remove("hidden")}
 function closeHelp(){document.getElementById("help-modal").classList.add("hidden")}
+function switchHelpTab(t){
+  document.getElementById('help-tab-user').className='btn btn-sm'+(t==='user'?'':' btn-outline');
+  document.getElementById('help-tab-admin').className='btn btn-sm'+(t==='admin'?'':' btn-outline');
+  if(t==='user'){document.getElementById('help-tab-user').style.background='var(--primary)';document.getElementById('help-tab-user').style.color='#fff';document.getElementById('help-tab-admin').style.background='';document.getElementById('help-tab-admin').style.color=''}else{document.getElementById('help-tab-admin').style.background='var(--primary)';document.getElementById('help-tab-admin').style.color='#fff';document.getElementById('help-tab-user').style.background='';document.getElementById('help-tab-user').style.color=''}
+  document.getElementById('help-content-user').classList.toggle('hidden',t!=='user');
+  document.getElementById('help-content-admin').classList.toggle('hidden',t!=='admin');
+}
 
 async function init(){
   const u=gu(),t=gt();
