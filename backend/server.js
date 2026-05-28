@@ -75,7 +75,6 @@ async function fixPlaceholderPasswords() {
 async function tryMongo() {
   try {
     mongoose = require('mongoose');
-    mongoose.set('sanitizeFilter', true); // Prevent NoSQL injection
     User = require('./models/User');
     Item = require('./models/Item');
     Rental = require('./models/Rental');
@@ -221,7 +220,7 @@ app.post('/api/auth/send-reg-code', async (req, res) => {
     if (!emailService.isConfigured()) return res.status(400).json({ error: '邮件服务未配置' });
     // Check email not already registered
     if (useMongo) {
-      const exists = await User.findOne({ email });
+      const exists = await User.findOne({ email: String(email) });
       if (exists) return res.status(400).json({ error: '该邮箱已被注册' });
     } else if (users.find(u => u.email === email)) {
       return res.status(400).json({ error: '该邮箱已被注册' });
@@ -252,9 +251,9 @@ app.post('/api/auth/register', async (req, res) => {
     }
 
     if (useMongo) {
-      const exists = await User.findOne({ username });
+      const exists = await User.findOne({ username: String(username) });
       if (exists) return res.status(400).json({ error: '学号已存在' });
-      const emailExists = await User.findOne({ email });
+      const emailExists = await User.findOne({ email: String(email) });
       if (emailExists) return res.status(400).json({ error: '邮箱已被注册' });
       const hashed = await bcrypt.hash(password, 10);
       const user = await new User({ username, email, password: hashed, role: 'user', active: true, nickname: nickname || '', wechat: wechat || '', phone: phone || '', firstRental: true, emailVerified: emailService.isConfigured() }).save();
@@ -278,7 +277,7 @@ app.post('/api/auth/login', async (req, res) => {
     if (!username || !password) return res.status(400).json({ error: '学号和密码不能为空' });
 
     if (useMongo) {
-      const user = await User.findOne({ username });
+      const user = await User.findOne({ username: String(username) });
       if (!user) return res.status(401).json({ error: '学号或密码错误' });
       if (!user.active) return res.status(401).json({ error: '账号已被禁用' });
       const match = await bcrypt.compare(password, user.password);
@@ -311,7 +310,7 @@ app.put('/api/auth/profile', auth, async (req, res) => {
       const user = await User.findById(req.user._id);
       if (!user) return res.status(404).json({ error: '用户不存在' });
       if (email !== undefined && email !== user.email) {
-        const dup = await User.findOne({ email, _id: { $ne: user._id } });
+        const dup = await User.findOne({ email: String(email), _id: { $ne: user._id } });
         if (dup) return res.status(400).json({ error: '邮箱已被其他用户使用' });
         user.email = email;
         user.emailVerified = false;
@@ -385,7 +384,7 @@ app.post('/api/items', auth, admin, async (req, res) => {
     const { name, code, category, description, totalStock, maxRentalDays, maxRentalQty, requireApproval, value, image, datasheetUrl } = req.body;
     if (!name || !code || !totalStock) return res.status(400).json({ error: '请填写必要信息：物品名称、编码、总库存' });
     if (useMongo) {
-      if (await Item.findOne({ code })) return res.status(400).json({ error: '物品编码已存在' });
+      if (await Item.findOne({ code: String(code) })) return res.status(400).json({ error: '物品编码已存在' });
       const item = await new Item({ name, code, category: category || '电子产品', description: description || '', stock: parseInt(totalStock), available: parseInt(totalStock), maxRentalDays: parseInt(maxRentalDays) || 7, maxRentalQty: parseInt(maxRentalQty) || 5, requiresApproval: requireApproval || false, value: parseInt(value) || 0, image: image || '', datasheetUrl: datasheetUrl || '', dailyRate: 0 }).save();
       return res.status(201).json({ message: '物品添加成功', item: sItemM(item) });
     } else {
@@ -404,7 +403,7 @@ app.put('/api/items/:id', auth, admin, async (req, res) => {
     if (useMongo) {
       const item = await Item.findById(req.params.id);
       if (!item) return res.status(404).json({ error: '物品不存在' });
-      if (code) { const dup = await Item.findOne({ code, _id: { $ne: item._id } }); if (dup) return res.status(400).json({ error: '物品编码已存在' }); item.code = code; }
+      if (code) { const dup = await Item.findOne({ code: String(code), _id: { $ne: item._id } }); if (dup) return res.status(400).json({ error: '物品编码已存在' }); item.code = code; }
       if (name) item.name = name;
       if (category) item.category = category;
       if (description) item.description = description;
@@ -723,7 +722,7 @@ app.get('/api/contact/admin', async (req, res) => {
 app.get('/api/contact/user/:username', async (req, res) => {
   const { username } = req.params;
   if (useMongo) {
-    const user = await User.findOne({ username, active: true }).lean();
+    const user = await User.findOne({ username: String(username), active: true }).lean();
     if (!user) return res.status(404).json({ error: '用户不存在' });
     return res.json({ wechat: user.wechat || '', phone: user.phone || '', email: user.email || '', nickname: user.nickname || '' });
   }
