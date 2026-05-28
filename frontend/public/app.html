@@ -1002,9 +1002,9 @@ function renderAdminApprovals(){
   document.getElementById('pickup-badge').textContent=allRentals.filter(r=>r.status==='approved').length;
   if(p.length===0){t.innerHTML='';e.classList.remove('hidden');return}
   e.classList.add('hidden');
-  t.innerHTML=p.map(r=>`<tr>
+	  t.innerHTML=p.map(r=>`<tr>
     <td>${r.userName||r.userId}${r.userNickname?' ('+r.userNickname+')':''}</td><td><strong>${r.itemName}</strong></td><td>${r.quantity}</td>
-    <td style="font-size:13px">${new Date(r.startDate).toLocaleDateString()}-${new Date(r.endDate).toLocaleDateString()}</td>
+	    <td style="font-size:13px">${new Date(r.startDate).toLocaleDateString()}-${new Date(r.endDate).toLocaleDateString()}</td>
     <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;color:var(--text-secondary)" title="${r.reason||''}">${r.reason||'-'}</td>
     <td><div style="display:flex;gap:6px">
       <button class="btn btn-success btn-sm" onclick="approveRental('${r.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>通过</button>
@@ -1027,9 +1027,9 @@ function renderAdminPickup(){
   const p=allRentals.filter(r=>r.status==='approved'),t=document.getElementById('pickup-table'),e=document.getElementById('pickup-empty');
   if(p.length===0){t.innerHTML='';e.classList.remove('hidden');return}
   e.classList.add('hidden');
-  t.innerHTML=p.map(r=>`<tr>
+	  t.innerHTML=p.map(r=>{const _n=new Date(),_od=_n>new Date(r.endDate)?' style="background:#fef2f2"':'';return `<tr${_od}>
     <td>${r.userName||r.userId}${r.userNickname?' ('+r.userNickname+')':''}</td><td><strong>${r.itemName}</strong></td><td>${r.quantity}</td>
-    <td style="font-size:13px">${new Date(r.startDate).toLocaleDateString()}-${new Date(r.endDate).toLocaleDateString()}</td>
+    <td style="font-size:13px">${new Date(r.startDate).toLocaleDateString()}-${new Date(r.endDate).toLocaleDateString()}${_n>new Date(r.endDate)?`<span style="color:#dc2626;font-weight:600;margin-left:8px">已过期</span>`:``}</td>
     <td><button class="btn btn-primary btn-sm" onclick="pickupRental('${r.id}')">确认领取</button></td>
   </tr>`).join('');
 }
@@ -1042,9 +1042,9 @@ function renderAdminActive(){
   const a=allRentals.filter(r=>r.status==='active'),t=document.getElementById('active-table'),e=document.getElementById('active-empty');
   if(a.length===0){t.innerHTML='';e.classList.remove('hidden');return}
   e.classList.add('hidden');
-  t.innerHTML=a.map(r=>`<tr>
+	  t.innerHTML=a.map(r=>{const _n2=new Date(),_od2=_n2>new Date(r.endDate)?' style="background:#fef2f2"':'';return `<tr${_od2}>
     <td>${r.userName||r.userId}${r.userNickname?' ('+r.userNickname+')':''}</td><td><strong>${r.itemName}</strong></td><td>${r.quantity}</td>
-    <td style="font-size:13px">${new Date(r.startDate).toLocaleDateString()}-${new Date(r.endDate).toLocaleDateString()}</td>
+    <td style="font-size:13px">${new Date(r.startDate).toLocaleDateString()}-${new Date(r.endDate).toLocaleDateString()}${_n2>new Date(r.endDate)?`<span style="color:#dc2626;font-weight:600;margin-left:8px">逾期${Math.floor((_n2-new Date(r.endDate))/86400000)}天</span>`:``}</td>
     <td><button class="btn btn-warning btn-sm" onclick="returnRental('${r.id}')">确认归还</button></td>
   </tr>`).join('');
 }
