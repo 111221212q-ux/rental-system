@@ -486,6 +486,7 @@ tr:hover td{background:linear-gradient(90deg,rgba(99,102,241,.03),transparent)}
           <button class="tab-btn" onclick="switchAdminTab('stats',this)">数据统计</button>
         </div>
         <div id="admin-approvals" class="admin-tab">
+          <div style="margin-bottom:8px"><input class="input" id="search-approvals" type="text" placeholder="搜索用户名或物品名..." oninput="renderAdminApprovals()" style="width:240px;padding:6px 10px;font-size:13px"></div>
           <div class="card" style="padding:0">
             <div class="table-wrap" style="border:none">
               <table><thead><tr><th>申请人</th><th>物品</th><th>数量</th><th>日期</th><th>用途</th><th>操作</th></tr></thead><tbody id="approvals-table"></tbody></table>
@@ -494,6 +495,7 @@ tr:hover td{background:linear-gradient(90deg,rgba(99,102,241,.03),transparent)}
           </div>
         </div>
         <div id="admin-pickup" class="admin-tab hidden">
+          <div style="margin-bottom:8px"><input class="input" id="search-pickup" type="text" placeholder="搜索用户名或物品名..." oninput="renderAdminPickup()" style="width:240px;padding:6px 10px;font-size:13px"></div>
           <div class="card" style="padding:0">
             <div class="table-wrap" style="border:none">
               <table><thead><tr><th>申请人</th><th>物品</th><th>数量</th><th>日期</th><th>操作</th></tr></thead><tbody id="pickup-table"></tbody></table>
@@ -502,6 +504,7 @@ tr:hover td{background:linear-gradient(90deg,rgba(99,102,241,.03),transparent)}
           </div>
         </div>
         <div id="admin-active" class="admin-tab hidden">
+          <div style="margin-bottom:8px"><input class="input" id="search-active" type="text" placeholder="搜索用户名或物品名..." oninput="renderAdminActive()" style="width:240px;padding:6px 10px;font-size:13px"></div>
           <div class="card" style="padding:0">
             <div class="table-wrap" style="border:none">
               <table><thead><tr><th>借用人</th><th>物品</th><th>数量</th><th>租期</th><th>操作</th></tr></thead><tbody id="active-table"></tbody></table>
@@ -525,6 +528,7 @@ tr:hover td{background:linear-gradient(90deg,rgba(99,102,241,.03),transparent)}
               ④ 也可以是官方网站的产品介绍/说明页面地址
             </div>
           </details>
+          <div style="margin-bottom:8px"><input class="input" id="search-items" type="text" placeholder="搜索物品名称..." oninput="renderAdminItems()" style="width:240px;padding:6px 10px;font-size:13px"></div>
           <div class="card" style="padding:0">
             <div class="table-wrap" style="border:none">
               <table><thead><tr><th>编码</th><th>名称</th><th>分类</th><th>总/可用</th><th>天数</th><th>状态</th><th>操作</th></tr></thead><tbody id="admin-items-table"></tbody></table>
@@ -532,6 +536,7 @@ tr:hover td{background:linear-gradient(90deg,rgba(99,102,241,.03),transparent)}
           </div>
         </div>
         <div id="admin-users" class="admin-tab hidden">
+          <div style="margin-bottom:8px"><input class="input" id="search-users" type="text" placeholder="搜索用户名..." oninput="renderAdminUsers()" style="width:240px;padding:6px 10px;font-size:13px"></div>
           <div class="card" style="padding:0">
             <div class="table-wrap" style="border:none">
               <table><thead><tr><th>学号</th><th>邮箱</th><th>微信</th><th>手机</th><th>角色</th><th>状态</th><th class="superadmin-only hidden">操作</th></tr></thead><tbody id="users-table"></tbody></table>
