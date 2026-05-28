@@ -758,6 +758,123 @@ app.post('/api/seed/test-users', auth, admin, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// ── Seed comprehensive test data ──────────────────────
+app.post('/api/seed/test-data', auth, admin, async (req, res) => {
+  try {
+    const now = new Date();
+    const d = (offset) => { const t = new Date(now); t.setDate(t.getDate() + offset); return t; };
+    const toDateStr = (dt) => dt.toISOString().split('T')[0];
+    const toDate = (dt) => dt; // MongoDB uses Date obj
+
+    // Find test users
+    const findUser = async (username) => {
+      if (useMongo) return await User.findOne({ username }).lean();
+      return users.find(u => u.username === username);
+    };
+    const findItem = async (code) => {
+      if (useMongo) return await Item.findOne({ code }).lean();
+      return items.find(i => i.code === code);
+    };
+    const usernames = ['test001', 'test002', 'test003'];
+    const itemCodes = ['LP001', 'OC002', 'PJ003', 'IP004', 'PB005'];
+    const itemNames = ['笔记本电脑 Pro','办公椅','投影仪','iPad Pro','移动电源'];
+
+    // Define test scenarios: [username, itemCode, qty, startDayOffset, endDayOffset, status, extra]
+    const scenarios = [
+      // test001 张三 — 全覆盖
+      ['test001','IP004', 1,  0,  3, 'pending',       { notes:'课程作业' }],
+      ['test001','PB005', 1, -1,  1, 'approved',      { notes:'备用电源' }],
+      ['test001','LP001', 1, -5,  3, 'active',        { pickedAt: -5 }],
+      ['test001','OC002', 1,-10, -3, 'active',        { pickedAt: -10 }], // overdue
+      ['test001','PJ003', 1,-25,-20, 'active',        { pickedAt: -25 }], // severe overdue
+      ['test001','IP004', 1,-20,-15, 'returned',      { pickedAt: -20, returnedAt: -13 }],
+      ['test001','LP001', 1, -2,  5, 'rejected',      { notes:'器材不足，已拒绝' }],
+      ['test001','PB005', 3, -3,  2, 'cancelled',     {}],
+      // test002 李四
+      ['test002','LP001', 1,  0,  7, 'pending',       { notes:'项目开发' }],
+      ['test002','OC002', 1, -3,  5, 'active',        { pickedAt: -3 }],
+      ['test002','PB005', 2, -8, -5, 'active',        { pickedAt: -8 }], // overdue
+      ['test002','IP004', 1,-14,-10, 'returned',      { pickedAt: -14, returnedAt: -8 }],
+      ['test002','PB005', 1, -7, -4, 'approved',      {}], // will auto-cancel on next GET
+      // test003 王五
+      ['test003','OC002', 1,  0,  3, 'pending',       { notes:'办公室使用' }],
+      ['test003','LP001', 1,-12, -6, 'active',        { pickedAt: -12 }], // overdue
+      ['test003','PB005', 1, -7, -5, 'returned',      { pickedAt: -7, returnedAt: -3 }],
+    ];
+
+    const results = [];
+    if (useMongo) {
+      for (const [uname, icode, qty, sdOff, edOff, status, extra] of scenarios) {
+        const user = await findUser(uname);
+        const item = await findItem(icode);
+        if (!user || !item) { results.push({ user: uname, item: icode, error: 'user or item not found' }); continue; }
+        const rental = {
+          item: item._id, user: user._id, quantity: qty,
+          startDate: d(sdOff), endDate: d(edOff),
+          status, notes: extra.notes || '',
+        };
+        if (extra.pickedAt !== undefined) rental.pickedAt = d(extra.pickedAt);
+        if (extra.returnedAt !== undefined) rental.returnDate = d(extra.returnedAt);
+        if (status === 'approved' || status === 'active' || status === 'rejected' || status === 'cancelled') {
+          rental.approvedBy = (await User.findOne({ role: 'admin' }).lean())._id;
+          rental.approvedAt = d(-1);
+        }
+        const created = await new Rental(rental).save();
+        results.push({ user: uname, item: itemNames[itemCodes.indexOf(icode)], status, qty });
+      }
+    } else {
+      for (const [uname, icode, qty, sdOff, edOff, status, extra] of scenarios) {
+        const user = users.find(u => u.username === uname);
+        const item = items.find(i => i.code === icode);
+        if (!user || !item) { results.push({ user: uname, item: icode, error: 'user or item not found' }); continue; }
+        // Check if similar rental already exists (prevents dupes on re-run)
+        const dup = rentals.find(r => r.userId === user.id && r.itemId === item.id && r.status === status);
+        if (dup) { results.push({ user: uname, item: item.name, status: status + ' (已存在)' }); continue; }
+        const rental = {
+          id: String(nextRentalId++),
+          userId: user.id, itemId: item.id, itemCode: item.code, itemName: item.name,
+          quantity: qty,
+          startDate: toDateStr(d(sdOff)), endDate: toDateStr(d(edOff)),
+          status,
+          reason: extra.notes || '',
+          createdAt: toDateStr(d(-1)),
+        };
+        if (status !== 'pending') {
+          rental.approvedBy = '1';
+          rental.approvedAt = toDateStr(d(-1));
+        }
+        if (extra.pickedAt !== undefined) rental.pickedAt = toDateStr(d(extra.pickedAt));
+        if (extra.returnedAt !== undefined) rental.actualReturnDate = toDateStr(d(extra.returnedAt));
+        rentals.push(rental);
+        saveData();
+        results.push({ user: uname, item: item.name, status, qty });
+      }
+    }
+
+    // For active rentals, deduct availableStock (JSON mode)
+    if (!useMongo) {
+      for (const r of results) {
+        if (r.status === 'active' || r.status === 'returned') {
+          const item = items.find(i => i.name === r.item);
+          if (item && item.availableStock >= r.qty) {
+            item.availableStock -= r.qty;
+          }
+        }
+      }
+      // Restore stock for returned items
+      for (const r of results) {
+        if (r.status === 'returned') {
+          const item = items.find(i => i.name === r.item);
+          if (item) item.availableStock += r.qty;
+        }
+      }
+      saveData();
+    }
+
+    res.json({ message: `已创建 ${results.length} 条测试租借`, data: results });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // ── Contact / Admin Info ─────────────────────────────────
 app.get('/api/contact/admin', async (req, res) => {
   if (useMongo) {
