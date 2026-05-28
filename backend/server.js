@@ -707,7 +707,7 @@ app.post('/api/sms/test', auth, admin, async (req, res) => {
 });
 
 // ── Seed overdue test data ───────────────────────────────
-app.post('/api/seed-overdue', auth, admin, async (req, res) => {
+app.post('/api/seed-overdue', auth, superadmin, async (req, res) => {
   try {
     if (!useMongo) return res.status(400).json({ error: '仅限MongoDB模式' });
     const now = new Date();
@@ -731,7 +731,7 @@ app.post('/api/seed-overdue', auth, admin, async (req, res) => {
 });
 
 // ── Seed test users ────────────────────────────────────
-app.post('/api/seed/test-users', auth, admin, async (req, res) => {
+app.post('/api/seed/test-users', auth, superadmin, async (req, res) => {
   try {
     const testUsers = [
       { username: 'test001', password: 'test123', email: 'test001@test.com', nickname: '学生张三', role: 'user' },
@@ -759,7 +759,7 @@ app.post('/api/seed/test-users', auth, admin, async (req, res) => {
 });
 
 // ── Seed comprehensive test data ──────────────────────
-app.post('/api/seed/test-data', auth, admin, async (req, res) => {
+app.post('/api/seed/test-data', auth, superadmin, async (req, res) => {
   try {
     const now = new Date();
     const d = (offset) => { const t = new Date(now); t.setDate(t.getDate() + offset); return t; };
@@ -876,7 +876,7 @@ app.post('/api/seed/test-data', auth, admin, async (req, res) => {
 });
 
 // ── Clean up test data ──────────────────────────────────
-app.post('/api/seed/clean-test', auth, admin, async (req, res) => {
+app.post('/api/seed/clean-test', auth, superadmin, async (req, res) => {
   try {
     const testUsernames = ['test001', 'test002', 'test003', 'testreg001'];
     let deletedUsers = 0, deletedRentals = 0;
