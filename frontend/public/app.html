@@ -408,7 +408,7 @@ tr:hover td{background:linear-gradient(90deg,rgba(99,102,241,.03),transparent)}
     <div class="content">
       <!-- Dashboard -->
       <div id="page-dashboard" class="page">
-        <div id="alert-bar" class="hidden"></div>
+      <div id="alert-bar" class="hidden"><div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><span style="font-size:13px;font-weight:600;color:var(--danger)">逾期提醒</span><button class="btn btn-outline btn-sm" id="alert-toggle" onclick="toggleAlerts()" style="font-size:12px;padding:2px 10px">收起</button></div><div id="alert-list"></div></div>
         <div class="stats-grid" id="stats-grid">
           <div class="stat-card blue"><div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg></div><div class="stat-content"><div class="stat-num" id="stat-items">-</div><div class="stat-label">可租物品</div></div></div>
           <div class="stat-card green"><div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div><div class="stat-content"><div class="stat-num" id="stat-available">-</div><div class="stat-label">可用库存</div></div></div>
@@ -544,6 +544,7 @@ tr:hover td{background:linear-gradient(90deg,rgba(99,102,241,.03),transparent)}
             <div class="stat-card purple" onclick="showStatsDetail('users')" style="cursor:pointer"><div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div><div class="stat-content"><div class="stat-num" id="admin-stat-users">-</div><div class="stat-label">注册用户</div></div></div>
             <div class="stat-card orange" onclick="showStatsDetail('pending')" style="cursor:pointer"><div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div class="stat-content"><div class="stat-num" id="admin-stat-pending">-</div><div class="stat-label">待审核</div></div></div>
             <div class="stat-card red" onclick="showStatsDetail('overdue')" style="cursor:pointer"><div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div class="stat-content"><div class="stat-num" id="admin-stat-overdue">-</div><div class="stat-label">逾期</div></div></div>
+            <div class="stat-card" style="background:#fef2f2;border:1px solid #fecaca;cursor:pointer" onclick="showStatsDetail('severe_overdue')"><div class="stat-icon" style="color:#7f1d1d"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div><div class="stat-content"><div class="stat-num" id="admin-stat-severe-overdue" style="color:#7f1d1d">-</div><div class="stat-label" style="color:#7f1d1d">严重逾期(>15天)</div></div></div>
           </div>
           <div style="text-align:right;margin-bottom:16px"><button class="btn btn-primary btn-sm" onclick="exportStats()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> 导出 Excel</button></div>
 	          <div class="card" style="margin-bottom:24px;padding:14px 18px;font-size:13px" id="sms-config-card">
@@ -873,6 +874,7 @@ async function loadData(){
     ]);
     allItems=items;myRentals=Array.isArray(rentals)?rentals:[];allUsers=Array.isArray(users)?users:[];
     try{allRentals=await api('GET','/rentals')}catch(e){allRentals=[]}
+    try{document.getElementById('pickup-badge').textContent=allRentals.filter(r=>r.status==='approved').length}catch(e){}
     try{adminContact=await api('GET','/contact/admin')}catch(e){}
   }catch(e){}
 }
@@ -892,6 +894,11 @@ function switchPage(page){
 function renderPage(p){if(p==='dashboard')renderDashboard();else if(p==='items')renderItems();else if(p==='my-rentals')renderMyRentals();else if(p==='profile')renderProfile();else if(p==='admin')renderAdminApprovals();else if(p==='detail')renderDetail()}
 
 // Dashboard
+function toggleAlerts(){
+  const l=document.getElementById("alert-list"),t=document.getElementById("alert-toggle");
+  if(!l||!t)return;
+  if(l.style.display==="none"){l.style.display="";t.textContent="收起"}else{l.style.display="none";t.textContent="展开"}
+}
 function renderDashboard(){
   const av=allItems.filter(i=>i.status!=='unavailable');
   document.getElementById('stat-items').textContent=av.length;
@@ -899,13 +906,20 @@ function renderDashboard(){
   document.getElementById('stat-my-active').textContent=myRentals.filter(r=>r.status==='active').length;
   document.getElementById('stat-my-pending').textContent=myRentals.filter(r=>r.status==='pending').length;
   fetch('/api/notifications',{headers:{'Authorization':'Bearer '+gt()}}).then(r=>r.json()).then(d=>{
-    const bar=document.getElementById('alert-bar');
-    if(d.total===0){bar.classList.add('hidden');bar.innerHTML='';return}
+    const bar=document.getElementById('alert-bar'),list=document.getElementById('alert-list');
+    const overdue=d.alerts.filter(a=>a.type==='overdue');
+    if(overdue.length===0){bar.classList.add('hidden');list.innerHTML='';return}
     bar.classList.remove('hidden');
-    bar.innerHTML=d.alerts.map(a=>a.type==='overdue'?
-      `<div class="alert alert-danger"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg><span><strong>${esc(a.username)}</strong> 的 <strong>${esc(a.itemName)}</strong> 已逾期 <strong>${a.daysOverdue}</strong> 天${a.phone?' · '+esc(a.phone):''}</span></div>`:
-      `<div class="alert alert-warning"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg><span><strong>${esc(a.username)}</strong> 的 <strong>${esc(a.itemName)}</strong> 还有 <strong>${a.daysLeft}</strong> 天到期${a.phone?' · '+esc(a.phone):''}</span></div>`
-    ).join('');
+    const severe=overdue.filter(a=>a.daysOverdue>15),normal=overdue.filter(a=>a.daysOverdue<=15);
+    list.innerHTML='';
+    if(severe.length){
+      list.innerHTML+=severe.map(a=>`<div class="alert alert-danger" style="border-left:4px solid #7f1d1d;background:#fef2f2"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:#7f1d1d"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg><span><strong>${esc(a.username)}</strong> 的 <strong>${esc(a.itemName)}</strong> 已严重逾期 <strong style="color:#7f1d1d;font-size:16px">${a.daysOverdue}</strong> 天！${a.phone?' · '+esc(a.phone):''}${a.wechat?' · 微信:'+esc(a.wechat):''}</span></div>`).join('');
+      document.getElementById('alert-toggle').textContent='收起严重逾期 ('+severe.length+')';
+    }
+    if(normal.length){
+      list.innerHTML+=normal.map(a=>`<div class="alert alert-danger"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg><span><strong>${esc(a.username)}</strong> 的 <strong>${esc(a.itemName)}</strong> 已逾期 <strong>${a.daysOverdue}</strong> 天${a.phone?' · '+esc(a.phone):''}</span></div>`).join('');
+    }
+    document.getElementById('alert-toggle').onclick=toggleAlerts;
   }).catch(()=>{});
   const g=document.getElementById('dashboard-items');
   g.innerHTML=av.slice(0,4).map(i=>itemCard(i)).join('');
@@ -985,6 +999,7 @@ function switchAdminTab(tab,btn){
 function renderAdminApprovals(){
   const p=allRentals.filter(r=>r.status==='pending'),t=document.getElementById('approvals-table'),e=document.getElementById('approvals-empty');
   document.getElementById('approvals-badge').textContent=p.length;
+  document.getElementById('pickup-badge').textContent=allRentals.filter(r=>r.status==='approved').length;
   if(p.length===0){t.innerHTML='';e.classList.remove('hidden');return}
   e.classList.add('hidden');
   t.innerHTML=p.map(r=>`<tr>
@@ -1093,6 +1108,8 @@ function renderAdminStats(){
   document.getElementById('admin-stat-pending').textContent=allRentals.filter(r=>r.status==='pending').length;
   const now=new Date();const overdue=allRentals.filter(r=>r.status==='active'&&new Date(r.endDate)<now);
   document.getElementById('admin-stat-overdue').textContent=overdue.length;
+  const severeOverdue=overdue.filter(r=>Math.floor((now-new Date(r.endDate))/(86400000))>15);
+  document.getElementById('admin-stat-severe-overdue').textContent=severeOverdue.length;
   checkSmsStatus();
   const b={};allRentals.forEach(r=>{b[r.status]=(b[r.status]||0)+1});
   const t=document.getElementById('stats-breakdown'),sm={pending:'待审核',approved:'已通过',rejected:'已拒绝',active:'租借中',returned:'已归还',overdue:'逾期',cancelled:'已取消'};
@@ -1137,14 +1154,22 @@ function showStatsDetail(type,filter){
       return `<tr style="background:#fef2f2"><td>${r.userName||r.userId}${r.userNickname?' ('+r.userNickname+')':''}</td><td><strong>${r.itemName}</strong></td><td>${r.quantity}</td><td>${new Date(r.endDate).toLocaleDateString()}</td><td><span style="color:#dc2626;font-weight:600">${days}天</span></td><td><button class="btn btn-sm btn-warning" onclick="urgeRental('${r.id}')">催还</button></td></tr>`;
     }).join('');
   }
+  else if(type==='severe_overdue'){
+    const now=new Date();const list=allRentals.filter(r=>r.status==='active'&&new Date(r.endDate)<now&&Math.floor((now-new Date(r.endDate))/(86400000))>15);
+    title.textContent='严重逾期 (>15天) ('+list.length+'条)';
+    thead.innerHTML='<tr><th>用户</th><th>物品</th><th>数量</th><th>结束日期</th><th>逾期天数</th><th>操作</th></tr>';
+    tbody.innerHTML=list.length===0?'<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:24px">暂无</td></tr>':list.map(r=>{
+      const days=Math.floor((now-new Date(r.endDate))/(86400000));
+      return `<tr style="background:#fef2f2"><td>${r.userName||r.userId}${r.userNickname?' ('+esc(r.userNickname)+')':''}</td><td><strong>${r.itemName}</strong></td><td>${r.quantity}</td><td>${new Date(r.endDate).toLocaleDateString()}</td><td><span style="color:#7f1d1d;font-weight:700;font-size:15px">${days}天</span></td><td><button class="btn btn-sm btn-warning" onclick="urgeRental('${r.id}')">催还</button></td></tr>`;
+    }).join('');
 }
-
+}
 function exportStats(){
   const now=new Date();const overdue=allRentals.filter(r=>r.status==='active'&&new Date(r.endDate)<now);
   const sm={pending:'待审核',approved:'已通过',rejected:'已拒绝',active:'租借中',returned:'已归还',overdue:'逾期',cancelled:'已取消'};
   let csv='﻿'; // BOM for Excel UTF-8
   csv+='数据统计报告\n\n';
-  csv+='物品总数,'+allItems.length+'\n总租借,'+allRentals.length+'\n注册用户,'+allUsers.length+'\n待审核,'+allRentals.filter(r=>r.status==='pending').length+'\n逾期,'+overdue.length+'\n\n';
+  csv+='物品总数,'+allItems.length+'\n总租借,'+allRentals.length+'\n注册用户,'+allUsers.length+'\n待审核,'+allRentals.filter(r=>r.status==='pending').length+'\n逾期,'+overdue.length+'\n严重逾期(>15天),'+overdue.filter(r=>Math.floor((now-new Date(r.endDate))/(86400000))>15).length+'\n\n';
   csv+='=== 租借记录 ===\n用户,物品,数量,开始日期,结束日期,状态\n';
   allRentals.forEach(r=>{csv+=(r.userName||r.userId)+','+(r.itemName)+','+r.quantity+','+r.startDate+','+r.endDate+','+(sm[r.status]||r.status)+'\n'});
   csv+='\n=== 物品列表 ===\n编码,名称,分类,可用/总库存,最长天数\n';
