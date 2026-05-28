@@ -18,6 +18,8 @@
 - **待领取过期自动取消**：`GET /api/rentals` 时自动将已过期的 `approved` 记录改为 `cancelled`（不计入逾期，不会出现在待领取列表）；逾期统计只统计 `active` 状态的记录；删除按钮保留作手动删除用
 - **生成测试用户**：数据统计页新增"生成测试用户"按钮，调用 `POST /api/seed/test-users` 创建 test001/test002/test003 三个测试账号（密码 test123），后端新增对应接口
 - **生成测试租借**：数据统计页新增"生成测试租借"按钮，调用 `POST /api/seed/test-data` 创建 16 条覆盖所有状态的租借记录（pending/approved/active/returned/rejected/cancelled + 普通逾期 + 严重逾期），用于全面测试
+- **CSP 修复**：`img-src` 添加 `data:` 允许内联 SVG 图标（下拉箭头等）
+- **favicon 修复**：HTML 添加 `<link rel="icon">` 指向 `/favicon.svg`，消除 404
 
 ## 2026-05-28 — 注册流程重构 & 错误提示优化
 
