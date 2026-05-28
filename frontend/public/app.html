@@ -1106,7 +1106,7 @@ function renderAdminStats(){
   document.getElementById('admin-stat-rentals').textContent=allRentals.length;
   document.getElementById('admin-stat-users').textContent=allUsers.length;
   document.getElementById('admin-stat-pending').textContent=allRentals.filter(r=>r.status==='pending').length;
-  const now=new Date();const overdue=allRentals.filter(r=>r.status==='active'&&new Date(r.endDate)<now);
+  const now=new Date();const overdue=allRentals.filter(r=>(r.status==='active'||r.status==='approved')&&new Date(r.endDate)<now);
   document.getElementById('admin-stat-overdue').textContent=overdue.length;
   const severeOverdue=overdue.filter(r=>Math.floor((now-new Date(r.endDate))/(86400000))>15);
   document.getElementById('admin-stat-severe-overdue').textContent=severeOverdue.length;
@@ -1146,7 +1146,7 @@ function showStatsDetail(type,filter){
     thead.innerHTML='<tr><th>用户</th><th>物品</th><th>数量</th><th>开始</th><th>结束</th><th>状态</th></tr>';
     tbody.innerHTML=list.length===0?'<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:24px">暂无数据</td></tr>':list.map(r=>`<tr><td>${esc(r.userName||r.userId)}${r.userNickname?' ('+esc(r.userNickname)+')':''}</td><td><strong>${esc(r.itemName)}</strong></td><td>${r.quantity}</td><td>${new Date(r.startDate).toLocaleDateString()}</td><td>${new Date(r.endDate).toLocaleDateString()}</td><td><span class="badge badge-${r.status}">${sm[r.status]||r.status}</span></td></tr>`).join('');
   }else if(type==='overdue'){
-    const now=new Date();const list=allRentals.filter(r=>r.status==='active'&&new Date(r.endDate)<now);
+    const now=new Date();const list=allRentals.filter(r=>(r.status==='active'||r.status==='approved')&&new Date(r.endDate)<now);
     title.textContent='逾期租借 ('+list.length+'条)';
     thead.innerHTML='<tr><th>用户</th><th>物品</th><th>数量</th><th>结束日期</th><th>逾期天数</th><th>操作</th></tr>';
     tbody.innerHTML=list.length===0?'<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:24px">暂无逾期</td></tr>':list.map(r=>{
@@ -1155,7 +1155,7 @@ function showStatsDetail(type,filter){
     }).join('');
   }
   else if(type==='severe_overdue'){
-    const now=new Date();const list=allRentals.filter(r=>r.status==='active'&&new Date(r.endDate)<now&&Math.floor((now-new Date(r.endDate))/(86400000))>15);
+    const now=new Date();const list=allRentals.filter(r=>(r.status==='active'||r.status==='approved')&&new Date(r.endDate)<now&&Math.floor((now-new Date(r.endDate))/(86400000))>15);
     title.textContent='严重逾期 (>15天) ('+list.length+'条)';
     thead.innerHTML='<tr><th>用户</th><th>物品</th><th>数量</th><th>结束日期</th><th>逾期天数</th><th>操作</th></tr>';
     tbody.innerHTML=list.length===0?'<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:24px">暂无</td></tr>':list.map(r=>{
@@ -1165,7 +1165,7 @@ function showStatsDetail(type,filter){
 }
 }
 function exportStats(){
-  const now=new Date();const overdue=allRentals.filter(r=>r.status==='active'&&new Date(r.endDate)<now);
+  const now=new Date();const overdue=allRentals.filter(r=>(r.status==='active'||r.status==='approved')&&new Date(r.endDate)<now);
   const sm={pending:'待审核',approved:'已通过',rejected:'已拒绝',active:'租借中',returned:'已归还',overdue:'逾期',cancelled:'已取消'};
   let csv='﻿'; // BOM for Excel UTF-8
   csv+='数据统计报告\n\n';
