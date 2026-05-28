@@ -1039,13 +1039,13 @@ async function pickupRental(id){
   try{await api("PUT","/rentals/"+id+"/pickup");toast("已确认领取");allRentals=await api("GET","/rentals");renderAdminPickup();loadData()}catch(e){toast(e.message,"error")}finally{pickupRental._b=false}
 }
 function renderAdminActive(){
-  const a=allRentals.filter(r=>r.status==='active'),t=document.getElementById('active-table'),e=document.getElementById('active-empty');
+  const _now=new Date(),a=allRentals.filter(r=>r.status==='active'||(r.status==='approved'&&new Date(r.endDate)<_now)),t=document.getElementById('active-table'),e=document.getElementById('active-empty');
   if(a.length===0){t.innerHTML='';e.classList.remove('hidden');return}
   e.classList.add('hidden');
 	  t.innerHTML=a.map(r=>{const _n2=new Date(),_od2=_n2>new Date(r.endDate)?' style="background:#fef2f2"':'';return `<tr${_od2}>
     <td>${r.userName||r.userId}${r.userNickname?' ('+r.userNickname+')':''}</td><td><strong>${r.itemName}</strong></td><td>${r.quantity}</td>
     <td style="font-size:13px">${new Date(r.startDate).toLocaleDateString()}-${new Date(r.endDate).toLocaleDateString()}${_n2>new Date(r.endDate)?`<span style="color:#dc2626;font-weight:600;margin-left:8px">逾期${Math.floor((_n2-new Date(r.endDate))/86400000)}天</span>`:``}</td>
-    <td><button class="btn btn-warning btn-sm" onclick="returnRental('${r.id}')">确认归还</button></td>
+    <td>${r.status==='approved'?`<button class="btn btn-primary btn-sm" onclick="pickupRental('${r.id}')">确认领取</button>`:`<button class="btn btn-warning btn-sm" onclick="returnRental('${r.id}')">确认归还</button>`}</td>
   </tr>`}).join('');
 }
 async function returnRental(id){
