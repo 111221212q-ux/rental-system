@@ -730,6 +730,34 @@ app.post('/api/seed-overdue', auth, admin, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// ── Seed test users ────────────────────────────────────
+app.post('/api/seed/test-users', auth, admin, async (req, res) => {
+  try {
+    const testUsers = [
+      { username: 'test001', password: 'test123', email: 'test001@test.com', nickname: '学生张三', role: 'user' },
+      { username: 'test002', password: 'test123', email: 'test002@test.com', nickname: '学生李四', role: 'user' },
+      { username: 'test003', password: 'test123', email: 'test003@test.com', nickname: '学生王五', role: 'user' },
+    ];
+    const created = [];
+    for (const u of testUsers) {
+      if (useMongo) {
+        const exists = await User.findOne({ username: u.username });
+        if (exists) { created.push({ username: u.username, status: '已存在' }); continue; }
+        const hashed = await bcrypt.hash(u.password, 10);
+        await new User({ username: u.username, email: u.email, password: hashed, role: u.role, active: true, nickname: u.nickname, wechat: '', phone: '', firstRental: true, emailVerified: false }).save();
+        created.push({ username: u.username, password: u.password, status: '已创建' });
+      } else {
+        if (users.find(x => x.username === u.username)) { created.push({ username: u.username, status: '已存在' }); continue; }
+        const hashed = await bcrypt.hash(u.password, 10);
+        users.push({ id: String(nextUserId++), username: u.username, email: u.email, password: hashed, role: u.role, active: true, nickname: u.nickname, wechat: '', phone: '', firstRental: true, emailVerified: false });
+        saveData();
+        created.push({ username: u.username, password: u.password, status: '已创建' });
+      }
+    }
+    res.json({ message: `成功创建 ${created.filter(c=>c.status==='已创建').length} 个用户`, data: created });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // ── Contact / Admin Info ─────────────────────────────────
 app.get('/api/contact/admin', async (req, res) => {
   if (useMongo) {

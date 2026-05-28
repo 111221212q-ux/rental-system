@@ -546,7 +546,7 @@ tr:hover td{background:linear-gradient(90deg,rgba(99,102,241,.03),transparent)}
             <div class="stat-card red" onclick="showStatsDetail('overdue')" style="cursor:pointer"><div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div class="stat-content"><div class="stat-num" id="admin-stat-overdue">-</div><div class="stat-label">逾期</div></div></div>
             <div class="stat-card" style="background:#fef2f2;border:1px solid #fecaca;cursor:pointer" onclick="showStatsDetail('severe_overdue')"><div class="stat-icon" style="color:#7f1d1d"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div><div class="stat-content"><div class="stat-num" id="admin-stat-severe-overdue" style="color:#7f1d1d">-</div><div class="stat-label" style="color:#7f1d1d">严重逾期(>15天)</div></div></div>
           </div>
-          <div style="text-align:right;margin-bottom:16px"><button class="btn btn-primary btn-sm" onclick="exportStats()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> 导出 Excel</button></div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px"><button class="btn btn-primary btn-sm" onclick="exportStats()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> 导出 Excel</button><button class="btn btn-outline btn-sm" onclick="seedTestUsers()" style="color:var(--text-muted)">生成测试用户</button></div>
 	          <div class="card" style="margin-bottom:24px;padding:14px 18px;font-size:13px" id="sms-config-card">
             <div style="display:flex;justify-content:space-between;align-items:center">
               <span>邮件催还 <span id="sms-status-badge" style="display:inline-flex;align-items:center;padding:2px 10px;border-radius:100px;font-size:12px;font-weight:500;background:#fee2e2;color:#991b1b">未配置</span></span>
@@ -1184,6 +1184,10 @@ function exportStats(){
   allUsers.forEach(u=>{csv+=(u.username)+','+(u.email||'')+','+(u.wechat||'')+','+(u.phone||'')+','+(rm[u.role]||u.role)+'\n'});
   const blob=new Blob([csv],{type:'application/vnd.ms-excel;charset=utf-8'});
   const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='数据统计'+'.csv';a.click();URL.revokeObjectURL(url)
+}
+async function seedTestUsers(){
+  if(seedTestUsers._b)return;seedTestUsers._b=true;
+  try{const r=await api('POST','/seed/test-users');toast(r.message||'完成');allUsers=await api('GET','/admin/users').catch(()=>[]);allRentals=await api('GET','/rentals');renderAdminStats()}catch(e){toast(e.message,'error')}finally{seedTestUsers._b=false}
 }
 
 // Modals
