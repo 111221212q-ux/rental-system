@@ -747,7 +747,7 @@ tr:hover td{background:linear-gradient(90deg,rgba(99,102,241,.03),transparent)}
     <div class="modal-body" style="font-size:14px;line-height:1.8;color:var(--text-secondary)">
       <div style="display:flex;gap:8px;margin-bottom:16px">
         <button class="btn btn-sm" id="help-tab-user" onclick="switchHelpTab('user')" style="flex:1;background:var(--primary);color:#fff">用户指南</button>
-        <button class="btn btn-sm btn-outline" id="help-tab-admin" onclick="switchHelpTab('admin')" style="flex:1" class="hidden">管理员指南</button>
+        <button class="btn btn-sm btn-outline hidden" id="help-tab-admin" onclick="switchHelpTab('admin')" style="flex:1">管理员指南</button>
       </div>
       <div id="help-content-user">
         <div style="margin-bottom:12px">
@@ -1629,7 +1629,7 @@ async function loadContactInfo(){
     }catch(_){}
   }catch(e){}
 }
-function openHelp(){document.getElementById("help-modal").classList.remove("hidden");const a=document.getElementById("help-tab-admin");if(a)a.classList.toggle("hidden",!currentUser||currentUser.role==="user")}
+function openHelp(){document.getElementById("help-modal").classList.remove("hidden");const a=document.getElementById("help-tab-admin");if(a){const isAdmin=currentUser&&(currentUser.role==="admin"||currentUser.role==="superadmin");a.classList.toggle("hidden",!isAdmin)}}
 function closeHelp(){document.getElementById("help-modal").classList.add("hidden")}
 function switchHelpTab(t){
   document.getElementById('help-tab-user').className='btn btn-sm'+(t==='user'?'':' btn-outline');
