@@ -472,6 +472,14 @@ tr:hover td{background:linear-gradient(90deg,rgba(99,102,241,.03),transparent)}
           <div class="form-group"><label class="form-label">院系</label><input class="input" id="prof-department" placeholder="所属院系"></div>
           <button class="btn btn-primary" onclick="saveProfile()">保存</button>
         </div>
+        <div class="card" style="margin-top:16px"><div class="card-header"><div class="card-title">修改密码</div></div>
+          <div style="padding:16px">
+            <div class="form-group"><label class="form-label">当前密码</label><input class="input" id="prof-cur-pwd" type="password" placeholder="输入当前密码"></div>
+            <div class="form-group"><label class="form-label">新密码（至少6位）</label><input class="input" id="prof-new-pwd" type="password" placeholder="输入新密码"></div>
+            <div class="form-group"><label class="form-label">确认新密码</label><input class="input" id="prof-confirm-pwd" type="password" placeholder="再次输入新密码"></div>
+            <button class="btn btn-primary" onclick="changePassword()">修改密码</button>
+          </div>
+        </div>
       </div>
 
       <!-- Admin -->
@@ -1534,6 +1542,15 @@ async function saveProfile(){
     toast('资料已保存');
   }catch(e){toast(e.message,'error')}
   enableBtn(btn);
+}
+async function changePassword(){
+  const cur=document.getElementById('prof-cur-pwd').value;
+  const np=document.getElementById('prof-new-pwd').value;
+  const confirm=document.getElementById('prof-confirm-pwd').value;
+  if(!cur||!np){toast('请填写完整','error');return}
+  if(np.length<6){toast('新密码至少6位','error');return}
+  if(np!==confirm){toast('两次密码不一致','error');return}
+  try{const r=await api('PUT','/auth/password',{currentPassword:cur,newPassword:np});toast(r.message||'密码已修改')}catch(e){toast(e.message,'error')}
 }
 async function sendProfileVerification(){
   const email=document.getElementById('prof-email').value.trim();
