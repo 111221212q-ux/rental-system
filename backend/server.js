@@ -58,12 +58,24 @@ function loadData() {
   } catch (err) { console.error('Load error:', err.message); }
 }
 
+function genAdminPass() {
+  const crypto = require('crypto');
+  return crypto.randomBytes(4).toString('hex') + '-' + crypto.randomBytes(2).toString('hex') + '-' + crypto.randomBytes(2).toString('hex');
+}
+
 async function fixPlaceholderPasswords() {
   let changed = false;
   for (const u of users) {
     if (u.password === '$2a$10$placeholder') {
-      const defaultPass = u.role === 'superadmin' ? '02ap2vm!Aa1' : (u.role === 'admin' ? 'admin123' : '123456');
+      const defaultPass = u.role === 'superadmin' ? genAdminPass() : (u.role === 'admin' ? genAdminPass() : '123456');
       u.password = await bcrypt.hash(defaultPass, 10);
+      if (u.role === 'superadmin' || u.role === 'admin') {
+        console.log('\n⚠️  ⚠️  ⚠️  ⚠️  ⚠️  ⚠️  ⚠️  ⚠️');
+        console.log(`  初始 ${u.role} 账号`);
+        console.log(`  学号: ${u.username}`);
+        console.log(`  密码: ${defaultPass}`);
+        console.log('⚠️  ⚠️  ⚠️  ⚠️  ⚠️  ⚠️  ⚠️  ⚠️\n');
+      }
       changed = true;
     }
   }
@@ -90,7 +102,8 @@ async function tryMongo() {
     if (userCount === 0 && itemCount === 0) {
       console.log('Seeding MongoDB...');
       const huser = await bcrypt.hash('123456', 10);
-      const hsuper = await bcrypt.hash('02ap2vm!Aa1', 10);
+      const adminPass = genAdminPass();
+      const hsuper = await bcrypt.hash(adminPass, 10);
       const u = await User.insertMany([
         { username: '20240001', email: '20240001@test.com', password: huser, role: 'user', phone: '13800138001', department: '计算机学院', firstRental: true },
         { username: '20240002', email: '20240002@test.com', password: huser, role: 'user', phone: '13800138002', department: '电子工程学院', firstRental: false },
@@ -109,6 +122,11 @@ async function tryMongo() {
         { item: it[0]._id, user: u[0]._id, quantity: 1, startDate: new Date('2024-05-20'), endDate: new Date('2024-05-22'), status: 'approved', approvedBy: u[3]._id, approvedAt: new Date('2024-05-19'), notes: '课程设计' },
         { item: it[2]._id, user: u[1]._id, quantity: 1, startDate: new Date('2024-05-21'), endDate: new Date('2024-05-21'), status: 'pending', notes: '会议演示' },
       ]);
+      console.log('\n⚠️  ⚠️  ⚠️  ⚠️  ⚠️  ⚠️  ⚠️  ⚠️');
+      console.log(`  初始 超级管理员 账号`);
+      console.log(`  学号: sa_882f4ca6`);
+      console.log(`  密码: ${adminPass}`);
+      console.log('⚠️  ⚠️  ⚠️  ⚠️  ⚠️  ⚠️  ⚠️  ⚠️\n');
       console.log('Seed complete');
     }
     return true;
