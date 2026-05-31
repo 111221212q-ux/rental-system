@@ -134,9 +134,8 @@
 ### 修复
 - **JSON 回退模式密码占位符**：`data.json` 中的 `$2a$10$placeholder` 密码无法通过 bcrypt 验证，新增 `fixPlaceholderPasswords()` 在启动时自动替换为真实 bcrypt 哈希
 - **MongoDB 连接丢失**：MONGODB_URI 环境变量被清空，应用回退 JSON 存储（5 users/6 items/2 rentals）。重新添加 URI 后数据恢复（9 users/6 items/20 rentals）
-- **MongoDB 密码更新**：从 `REDACTED` 改为 `REDACTED`（用户重置）
-- **Resend 邮件测试通过**：`api/sms/test` 发送到 `111221212q@gmail.com` 成功
-- **Gmail SMTP 尝试失败**：Railway 海外服务器无法连接 Gmail SMTP（587/465均超时），转回 Resend HTTP API
+- **MongoDB 连接修复**：重新配置数据库连接，应用恢复正常
+- **邮件服务切换**：从 Gmail SMTP 切换到 Resend HTTP API（Railway 封锁 SMTP 端口）
 - **调试辅助**：健康端点 `/api/health` 新增 `mongoError` 字段，快速定位连库失败原因
 
 ### 环境变量调整
