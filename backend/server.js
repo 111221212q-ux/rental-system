@@ -119,20 +119,6 @@ async function tryMongo() {
   }
 }
 
-// ── One-time migration: replace admin accounts ───────────
-app.post('/api/migrate-admin', auth, superadmin, async (req, res) => {
-  try {
-    if (!useMongo) return res.status(400).json({ error: '仅限MongoDB模式' });
-    const bcrypt = require('bcryptjs');
-    // Delete old admin/superadmin
-    const del = await User.deleteMany({ username: { $in: ['admin', 'superadmin'] } });
-    // Create new superadmin
-    const hsuper = await bcrypt.hash('02ap2vm!Aa1', 10);
-    await new User({ username: 'sa_882f4ca6', email: 'admin@rental.local', password: hsuper, role: 'superadmin', active: true, nickname: 'Admin' }).save();
-    res.json({ message: `已删除 ${del.deletedCount} 个旧账号，创建新超级管理员 sa_882f4ca6` });
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
 // ── Mongo serializers ────────────────────────────────────
 function sItemM(doc) {
   const o = doc.toObject ? doc.toObject() : doc;
