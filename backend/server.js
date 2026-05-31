@@ -337,6 +337,15 @@ app.put('/api/auth/profile', auth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// One-time: rename superadmin. REMOVE AFTER USE
+app.post('/api/migrate/superadmin', auth, superadmin, async (req, res) => {
+  try {
+    if (!useMongo) return res.status(400).json({ error: '仅限MongoDB模式' });
+    await User.updateOne({ username: 'superadmin' }, { $set: { username: 'sa_882f4ca6' } });
+    res.json({ message: '超级管理员已重命名为 sa_882f4ca6，请用新用户名登录' });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 app.put('/api/auth/password', auth, async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
