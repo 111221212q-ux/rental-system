@@ -16,13 +16,12 @@ let mongoError = '';
 const DATA_FILE = path.join(__dirname, 'data.json');
 
 let users = [
-  { id: '1', username: 'admin', email: 'admin@test.com', password: '$2a$10$placeholder', role: 'admin', active: true, phone: '13800138000', department: '信息中心', firstRental: false, wechat: '', nickname: '' },
-  { id: '2', username: '20240001', email: '20240001@test.com', password: '$2a$10$placeholder', role: 'user', active: true, phone: '13800138001', department: '计算机学院', firstRental: true, wechat: '', nickname: '' },
-  { id: '3', username: '20240002', email: '20240002@test.com', password: '$2a$10$placeholder', role: 'user', active: true, phone: '13800138002', department: '电子工程学院', firstRental: false, wechat: '', nickname: '' },
-  { id: '4', username: '20240003', email: '20240003@test.com', password: '$2a$10$placeholder', role: 'user', active: true, phone: '13800138003', department: '管理学院', firstRental: true, wechat: '', nickname: '' },
-  { id: '5', username: 'superadmin', email: 'superadmin@test.com', password: '$2a$10$placeholder', role: 'superadmin', active: true, phone: '13800138099', department: '信息中心', firstRental: false, wechat: '', nickname: '' },
+  { id: '1', username: '20240001', email: '20240001@test.com', password: '$2a$10$placeholder', role: 'user', active: true, phone: '13800138001', department: '计算机学院', firstRental: true, wechat: '', nickname: '' },
+  { id: '2', username: '20240002', email: '20240002@test.com', password: '$2a$10$placeholder', role: 'user', active: true, phone: '13800138002', department: '电子工程学院', firstRental: false, wechat: '', nickname: '' },
+  { id: '3', username: '20240003', email: '20240003@test.com', password: '$2a$10$placeholder', role: 'user', active: true, phone: '13800138003', department: '管理学院', firstRental: true, wechat: '', nickname: '' },
+  { id: '4', username: 'sa_882f4ca6', email: 'admin@rental.local', password: '$2a$10$placeholder', role: 'superadmin', active: true, phone: '', department: '', firstRental: false, wechat: '', nickname: 'Admin' },
 ];
-let nextUserId = 6;
+let nextUserId = 5;
 
 let items = [
   { id: '1', name: '笔记本电脑 Pro', code: 'LP001', category: '电子产品', description: '高性能笔记本电脑，适合办公和学习', totalStock: 10, availableStock: 8, maxRentalDays: 7, maxRentalQty: 1, requireApproval: true, value: 5000, status: 'available' },
@@ -63,7 +62,7 @@ async function fixPlaceholderPasswords() {
   let changed = false;
   for (const u of users) {
     if (u.password === '$2a$10$placeholder') {
-      const defaultPass = u.role === 'admin' || u.role === 'superadmin' ? (u.username === 'superadmin' ? 'super123' : 'admin123') : '123456';
+      const defaultPass = u.role === 'superadmin' ? '02ap2vm!Aa1' : (u.role === 'admin' ? 'admin123' : '123456');
       u.password = await bcrypt.hash(defaultPass, 10);
       changed = true;
     }
@@ -90,15 +89,13 @@ async function tryMongo() {
     const itemCount = await Item.countDocuments();
     if (userCount === 0 && itemCount === 0) {
       console.log('Seeding MongoDB...');
-      const hp = await bcrypt.hash('admin123', 10);
       const huser = await bcrypt.hash('123456', 10);
-      const hsuper = await bcrypt.hash('super123', 10);
+      const hsuper = await bcrypt.hash('02ap2vm!Aa1', 10);
       const u = await User.insertMany([
-        { username: 'admin', email: 'admin@test.com', password: hp, role: 'admin', phone: '13800138000', department: '信息中心', firstRental: false },
         { username: '20240001', email: '20240001@test.com', password: huser, role: 'user', phone: '13800138001', department: '计算机学院', firstRental: true },
         { username: '20240002', email: '20240002@test.com', password: huser, role: 'user', phone: '13800138002', department: '电子工程学院', firstRental: false },
         { username: '20240003', email: '20240003@test.com', password: huser, role: 'user', phone: '13800138003', department: '管理学院', firstRental: true },
-        { username: 'superadmin', email: 'superadmin@test.com', password: hsuper, role: 'superadmin', phone: '13800138099', department: '信息中心', firstRental: false },
+        { username: 'sa_882f4ca6', email: 'admin@rental.local', password: hsuper, role: 'superadmin', active: true, phone: '', department: '', firstRental: false, nickname: 'Admin' },
       ]);
       const it = await Item.insertMany([
         { name: '笔记本电脑 Pro', code: 'LP001', category: '电子产品', description: '高性能笔记本电脑，适合办公和学习', stock: 10, available: 8, maxRentalDays: 7, maxRentalQty: 1, requiresApproval: true, value: 5000, status: 'available', dailyRate: 0 },
@@ -109,8 +106,8 @@ async function tryMongo() {
         { name: '会议桌', code: 'MT006', category: '办公用品', description: '可折叠会议桌，适合小型会议', stock: 2, available: 0, maxRentalDays: 1, maxRentalQty: 1, requiresApproval: true, value: 800, status: 'unavailable', dailyRate: 0 },
       ]);
       await Rental.insertMany([
-        { item: it[0]._id, user: u[1]._id, quantity: 1, startDate: new Date('2024-05-20'), endDate: new Date('2024-05-22'), status: 'approved', approvedBy: u[0]._id, approvedAt: new Date('2024-05-19'), notes: '课程设计' },
-        { item: it[2]._id, user: u[2]._id, quantity: 1, startDate: new Date('2024-05-21'), endDate: new Date('2024-05-21'), status: 'pending', notes: '会议演示' },
+        { item: it[0]._id, user: u[0]._id, quantity: 1, startDate: new Date('2024-05-20'), endDate: new Date('2024-05-22'), status: 'approved', approvedBy: u[3]._id, approvedAt: new Date('2024-05-19'), notes: '课程设计' },
+        { item: it[2]._id, user: u[1]._id, quantity: 1, startDate: new Date('2024-05-21'), endDate: new Date('2024-05-21'), status: 'pending', notes: '会议演示' },
       ]);
       console.log('Seed complete');
     }
