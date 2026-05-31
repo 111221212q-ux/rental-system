@@ -337,6 +337,31 @@ app.put('/api/auth/profile', auth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+app.put('/api/auth/password', auth, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    if (!currentPassword || !newPassword || newPassword.length < 6)
+      return res.status(400).json({ error: '密码至少6位' });
+    if (useMongo) {
+      const user = await User.findById(req.user._id);
+      if (!user) return res.status(404).json({ error: '用户不存在' });
+      const ok = await bcrypt.compare(currentPassword, user.password);
+      if (!ok) return res.status(400).json({ error: '当前密码错误' });
+      user.password = await bcrypt.hash(newPassword, 10);
+      await user.save();
+      return res.json({ message: '密码修改成功' });
+    } else {
+      const user = users.find(u => u.id === req.user.id);
+      if (!user) return res.status(404).json({ error: '用户不存在' });
+      const ok = await bcrypt.compare(currentPassword, user.password);
+      if (!ok) return res.status(400).json({ error: '当前密码错误' });
+      user.password = await bcrypt.hash(newPassword, 10);
+      saveData();
+      return res.json({ message: '密码修改成功' });
+    }
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 app.post('/api/auth/send-verification', auth, async (req, res) => {
   try {
     if (!useMongo) return res.status(400).json({ error: '邮箱验证需要MongoDB' });
