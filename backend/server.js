@@ -93,6 +93,7 @@ async function tryMongo() {
     if (!process.env.MONGODB_URI) { console.log('MONGODB_URI not set, skipping MongoDB'); return; }
     const mongoURI = process.env.MONGODB_URI;
     await mongoose.connect(mongoURI, { serverSelectionTimeoutMS: 15000 });
+    mongoose.set('sanitizeFilter', true);
     useMongo = true;
     console.log('Using MongoDB');
 
@@ -203,17 +204,20 @@ function auth(req, res, next) {
     if (!token) return res.status(401).json({ error: 'No authentication token provided' });
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     if (useMongo) {
-      User.findById(decoded.userId).lean().then(user => {
-        if (!user || !user.active) return res.status(401).json({ error: 'User not found or inactive' });
-        req.user = user;
-        next();
-      }).catch(() => res.status(401).json({ error: 'Invalid authentication token' }));
-    } else {
-      const user = users.find(u => u.id === decoded.userId);
-      if (!user || !user.active) return res.status(401).json({ error: 'User not found or inactive' });
-      req.user = { ...user, _id: { toString: () => user.id } };
-      next();
+      (async () => {
+        try {
+          const user = await User.findById(decoded.userId).lean();
+          if (!user || !user.active) return res.status(401).json({ error: 'User not found or inactive' });
+          req.user = user;
+          next();
+        } catch (e) { res.status(401).json({ error: 'Invalid authentication token' }); }
+      })();
+      return;
     }
+    const user = users.find(u => u.id === decoded.userId);
+    if (!user || !user.active) return res.status(401).json({ error: 'User not found or inactive' });
+    req.user = { ...user, _id: { toString: () => user.id } };
+    next();
   } catch (e) { res.status(401).json({ error: 'Invalid authentication token' }); }
 }
 
@@ -489,6 +493,7 @@ app.put('/api/items/:id', auth, admin, async (req, res) => {
 app.delete('/api/items/:id', auth, admin, async (req, res) => {
   try {
     if (useMongo) {
+      if (!isValidObjectId(req.params.id)) return res.status(400).json({ error: '无效的物品ID' });
       const item = await Item.findById(req.params.id);
       if (!item) return res.status(404).json({ error: '物品不存在' });
       const has = await Rental.exists({ item: item._id, status: { $in: ['pending', 'approved', 'active'] } });
