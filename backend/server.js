@@ -93,7 +93,6 @@ async function tryMongo() {
     if (!process.env.MONGODB_URI) { console.log('MONGODB_URI not set, skipping MongoDB'); return; }
     const mongoURI = process.env.MONGODB_URI;
     await mongoose.connect(mongoURI, { serverSelectionTimeoutMS: 15000 });
-    mongoose.set('sanitizeFilter', true);
     useMongo = true;
     console.log('Using MongoDB');
 
