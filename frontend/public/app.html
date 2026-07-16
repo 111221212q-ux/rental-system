@@ -452,7 +452,7 @@ tr:hover td{background:linear-gradient(90deg,rgba(99,102,241,.03),transparent)}
         <div class="page-header"><h2>个人设置</h2></div>
         <div class="card" style="max-width:500px">
           <div class="card-header"><div><div class="card-title">编辑资料</div></div></div>
-          <div class="form-group"><label class="form-label">学号</label><input class="input" id="prof-username" disabled style="background:var(--bg-muted);color:var(--text-muted)"></div>
+          <div class="form-group"><label class="form-label">学号（13位数字）</label><input class="input" id="prof-username" maxlength="13" oninput="this.value=this.value.replace(/\D/g,'')" style="background:var(--bg-muted)"></div>
           <div class="form-group"><label class="form-label">昵称</label><input class="input" id="prof-nickname" placeholder="你的显示昵称"></div>
           <div class="form-group"><label class="form-label">邮箱</label>
             <div style="display:flex;gap:8px">
@@ -1534,11 +1534,16 @@ function renderProfile(){
 async function saveProfile(){
   const btn=document.querySelector('#page-profile .btn-primary');
   if(!disableBtn(btn,'保存中...'))return;
-  const n=document.getElementById('prof-nickname').value.trim(),w=document.getElementById('prof-wechat').value.trim(),ph=document.getElementById('prof-phone').value.trim(),d=document.getElementById('prof-department').value.trim();
+  const u=document.getElementById('prof-username').value.trim(),n=document.getElementById('prof-nickname').value.trim(),w=document.getElementById('prof-wechat').value.trim(),ph=document.getElementById('prof-phone').value.trim(),d=document.getElementById('prof-department').value.trim();
   try{
+    if(u&&u!==currentUser.username){
+      if(!/^\d{13}$/.test(u)){toast('学号必须是13位数字','error');enableBtn(btn);return}
+      await api('PUT','/auth/username',{username:u});
+    }
     const r=await api('PUT','/auth/profile',{nickname:n,wechat:w,phone:ph,department:d});
     su(r.user);currentUser=r.user;
     document.getElementById('nav-username').textContent=r.user.nickname||r.user.username;
+    document.getElementById('prof-username').value=r.user.username;
     toast('资料已保存');
   }catch(e){toast(e.message,'error')}
   enableBtn(btn);

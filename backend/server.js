@@ -358,6 +358,29 @@ app.put('/api/auth/profile', auth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+app.put('/api/auth/username', auth, async (req, res) => {
+  try {
+    const { username } = req.body;
+    if (!username || !/^\d{13}$/.test(username))
+      return res.status(400).json({ error: '学号必须是13位数字' });
+    if (useMongo) {
+      const dup = await User.findOne({ username: String(username), _id: { $ne: req.user._id } });
+      if (dup) return res.status(400).json({ error: '该学号已被使用' });
+      const user = await User.findByIdAndUpdate(req.user._id, { username: String(username) }, { new: true }).lean();
+      if (!user) return res.status(404).json({ error: '用户不存在' });
+      return res.json({ message: '学号修改成功', user: sUserM(user) });
+    } else {
+      const dup = users.find(u => u.username === username && u.id !== req.user.id);
+      if (dup) return res.status(400).json({ error: '该学号已被使用' });
+      const user = users.find(u => u.id === req.user.id);
+      if (!user) return res.status(404).json({ error: '用户不存在' });
+      user.username = username;
+      saveData();
+      return res.json({ message: '学号修改成功', user: { ...user, password: undefined } });
+    }
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 app.put('/api/auth/password', auth, async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
