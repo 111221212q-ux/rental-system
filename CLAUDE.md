@@ -142,18 +142,23 @@ node -e "const s=require('fs').readFileSync('frontend/public/app.html','utf8'); 
 
 ## 当前状态
 
-- 生产环境正常，使用 MongoDB Atlas
-- `sa_882f4ca6` 是唯一超级管理员（密码不在此文件中）
-- README 不含任何默认账号信息
-- 管理后台有测试数据生成/清理按钮（仅 superadmin 可见）
+> 📌 **接手项目请先读 [`HANDOFF.md`](HANDOFF.md)** — 里面有部署现状、阻塞问题和待办。
+
+- **主站已迁到 Sealos**（国内）：https://nbbhlsyclkdc.sealosbja.site
+- ⚠️ **Sealos 连不上 MongoDB Atlas**（国内 DNS 解析不了 SRV 记录），当前跑在 JSON 回退模式，页面是假数据
+- ✅ 真实数据完好，都在 MongoDB Atlas 里
+- 🔧 正在执行「Sealos 自建 MongoDB + 数据迁移」方案，脚本见 `migrate-db.js`
+- Railway 已废弃（试用到期）
+- `sa_882f4ca6` 是超级管理员（密码见记忆文件 `rental-system-secrets.md`，不在此文档中）
+- 仓库是 **public**，禁止把密钥写进任何提交的文件
 
 ## 上次开发内容
 
+- 学号可修改（13位数字校验 + 查重）✅
 - 管理后台 5 个 Tab 搜索功能 ✅
-- 使用指南双标签页（用户/管理员）✅
-- 管理员指南仅 admin 可见 ✅
+- 使用指南双标签页（用户/管理员），管理员指南仅 admin 可见 ✅
 - 待领取过期自动取消 ✅
-- 应急改密（直接 API 调用）✅
-- 安全修复：移除 git 历史中的密码 ✅
-- README 完整文档 ✅
+- 个人设置新增修改密码 ✅
+- Dockerfile + GitHub Actions 自动构建镜像 ✅
+- 安全修复：移除 git 历史中的密码、README 脱敏 ✅
 - 仓库已开源 ✅
