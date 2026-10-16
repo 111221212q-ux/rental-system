@@ -6,7 +6,14 @@ const bcrypt = require('bcryptjs');
 const emailService = require('./services/sms');
 const fs = require('fs');
 const path = require('path');
+const dns = require('dns');
 require('dotenv').config();
+
+// MongoDB Atlas 使用 SRV 记录，部分国内网络无法解析 → 指定国内公共 DNS 兜底
+try {
+  dns.setServers(['223.5.5.5', '223.6.6.6', '119.29.29.29', '8.8.8.8']);
+  console.log('DNS resolvers set:', dns.getServers().join(', '));
+} catch (e) { console.log('DNS setServers failed:', e.message); }
 
 let mongoose, User, Item, Rental, Comment;
 let useMongo = false;
