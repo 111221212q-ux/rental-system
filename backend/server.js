@@ -9,6 +9,7 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const { Store } = require('./storage');
 const { createImageUpload, imageDirectory, localImageName, requireImage } = require('./images');
+const { categories, isEquipment, openStatuses, slotStart, slotEnd, slotFields, openReservations, equipmentCapacity, ensureCapacity } = require('./scheduling');
 const defaultEmailService = require('./services/sms');
 
 const dayMs = 86400000;
@@ -60,7 +61,7 @@ async function bootstrap(store, env = process.env) {
   });
 }
 
-function createApp({ store, jwtSecret = process.env.JWT_SECRET, emailService = defaultEmailService, rateLimits = true } = {}) {
+function createApp({ store, jwtSecret = process.env.JWT_SECRET, emailService = defaultEmailService, rateLimits = true, clock = Date.now } = {}) {
   if (!store) throw new Error('需要 SQLite 存储');
   if (!jwtSecret || jwtSecret.length < 24) throw new Error('JWT_SECRET 必须至少24字符');
   const app = express();
@@ -101,10 +102,11 @@ function createApp({ store, jwtSecret = process.env.JWT_SECRET, emailService = d
   const find = (table, id, message) => { const row = store.get(table, id); if (!row) fail(404, message); return row; };
   const rentalDTO = row => {
     const user = store.get('users', row.userId);
-    return { ...row, startDate: row.startDate + 'T00:00:00+08:00', endDate: row.endDate + 'T23:59:59.999+08:00', userName: user?.username || '未知用户', userNickname: user?.nickname || '', itemId: row.itemId || '' };
+    return { ...row, startDate: row.startDate + (row.bookingMode === 'timeslot' ? `T${row.startTime}:00+08:00` : 'T00:00:00+08:00'), endDate: row.endDate + (row.bookingMode === 'timeslot' ? `T${row.endTime}:00+08:00` : 'T23:59:59.999+08:00'), userName: user?.username || '未知用户', userNickname: user?.nickname || '', itemId: row.itemId || '' };
   };
   function expireRentals() {
-    store.db.prepare("UPDATE rentals SET status='cancelled', updatedAt=? WHERE status='approved' AND endDate < ?").run(new Date().toISOString(), today());
+    store.db.prepare("UPDATE rentals SET status='cancelled', updatedAt=? WHERE bookingMode='daily' AND status='approved' AND endDate < ?").run(new Date().toISOString(), today());
+    for (const r of store.all('rentals')) if (r.bookingMode === 'timeslot' && ['pending','approved'].includes(r.status) && slotEnd(r) <= clock()) store.update('rentals', r.id, { status: 'cancelled' });
   }
   function setStock(item, availableStock, totalStock = item.totalStock) {
     return store.update('items', item.id, { totalStock, availableStock, status: stockStatus(availableStock, totalStock) });
@@ -204,11 +206,13 @@ function createApp({ store, jwtSecret = process.env.JWT_SECRET, emailService = d
   });
 
   function itemFields(body, existing = null) {
-    const row = existing ? { ...existing } : { maxRentalDays: 7, maxRentalQty: 5, requireApproval: true, value: 0, description: '', image: '', datasheetUrl: '', category: '电子产品' };
+    const row = existing ? { ...existing } : { maxRentalDays: 7, maxRentalQty: 5, requireApproval: true, value: 0, description: '', image: '', datasheetUrl: '', category: '电子模块' };
     for (const [key, max] of [['name',150],['code',50],['category',50],['description',5000],['image',2000],['datasheetUrl',2000]]) {
       if (body[key] !== undefined) row[key] = text(body[key], key, max, ['name','code','category'].includes(key));
     }
     if (!row.name || !row.code) fail(400, '请填写物品名称和编码');
+    if ((!existing || body.category !== undefined) && !categories.includes(row.category)) fail(400, '类别须为电子模块、电机电池或固定设备');
+    if (existing && isEquipment(existing) !== isEquipment(row) && store.all('rentals').some(r => r.itemId === existing.id && openStatuses.has(r.status))) fail(409, '该物品仍有未结束的租借，结束后才能切换固定设备类别');
     row.code = row.code.toUpperCase();
     for (const key of ['image','datasheetUrl']) if (row[key]) {
       if (key === 'image' && localImageName(row.image)) { requireImage(imageDirectory(store), localImageName(row.image)); continue; }
@@ -225,16 +229,28 @@ function createApp({ store, jwtSecret = process.env.JWT_SECRET, emailService = d
     if (body.requireApproval !== undefined) { if (typeof body.requireApproval !== 'boolean') fail(400, '审核选项必须为布尔值'); row.requireApproval = body.requireApproval; }
     if (body.value !== undefined) { if (!['number','string'].includes(typeof body.value) || !Number.isFinite(Number(body.value)) || Number(body.value) < 0) fail(400, '物品价值无效'); row.value = Number(body.value); }
     row.status = stockStatus(row.availableStock, row.totalStock);
+    if (existing && isEquipment(row)) ensureCapacity(store, { ...row, id: existing.id }, null, null, clock());
     delete row.id; delete row.createdAt; delete row.updatedAt;
     return row;
   }
   app.get('/api/items', (_, res) => res.json(store.all('items')));
+  app.get('/api/items/:id/availability', auth, (req, res) => {
+    expireRentals();
+    const item = find('items', req.params.id, '物品不存在');
+    if (!isEquipment(item)) fail(400, '该物品按天租借，无需时段预约');
+    const date = dateOnly(req.query.date);
+    const bookings = openReservations(store, item.id, clock()).filter(r => r.startDate === date).map(r => ({ startTime: r.startTime, endTime: r.endTime, quantity: r.quantity })).sort((a,b) => a.startTime.localeCompare(b.startTime));
+    const legacyBlocked = store.all('rentals').some(r => r.itemId === item.id && r.bookingMode === 'daily' && openStatuses.has(r.status));
+    res.json({ date, capacity: equipmentCapacity(store, item), bookings, legacyBlocked });
+  });
   app.post('/api/items', auth, admin, (req, res) => res.status(201).json({ message: '物品添加成功', item: store.insert('items', itemFields(req.body)) }));
   app.put('/api/items/:id', auth, admin, (req, res) => {
+    expireRentals();
     const item = store.transaction(() => store.update('items', req.params.id, itemFields(req.body, find('items', req.params.id, '物品不存在'))));
     res.json({ message: '物品更新成功', item });
   });
   app.delete('/api/items/:id', auth, admin, (req, res) => {
+    expireRentals();
     store.transaction(() => {
       find('items', req.params.id, '物品不存在');
       if (store.all('rentals').some(r => r.itemId === req.params.id && ['pending','approved','active'].includes(r.status))) fail(400, '该物品存在未结束的租借，无法删除');
@@ -242,12 +258,14 @@ function createApp({ store, jwtSecret = process.env.JWT_SECRET, emailService = d
     }); res.json({ message: '物品删除成功' });
   });
   app.put('/api/items/:id/stock', auth, admin, (req, res) => {
+    expireRentals();
     const quantity = integer(req.body.quantity, '数量');
     const item = store.transaction(() => {
       const i = find('items', req.params.id, '物品不存在');
       if (req.body.action === 'add') return setStock(i, i.availableStock + quantity, i.totalStock + quantity);
       if (req.body.action !== 'remove') fail(400, '无效的操作类型');
       if (i.availableStock < quantity) fail(400, '可出库库存不足');
+      if (isEquipment(i)) ensureCapacity(store, { ...i, availableStock: i.availableStock - quantity }, null, null, clock());
       return setStock(i, i.availableStock - quantity);
     }); res.json({ message: '库存更新成功', item });
   });
@@ -257,25 +275,35 @@ function createApp({ store, jwtSecret = process.env.JWT_SECRET, emailService = d
     const quantity = integer(req.body.quantity, '租借数量');
     const reason = text(req.body.reason, '用途', 1000, true);
     if (startDate < today()) fail(400, '开始时间不能早于今天');
-    if (endDate <= startDate) fail(400, '结束日须晚于开始日');
+    expireRentals();
     const rental = store.transaction(() => {
       const item = find('items', text(req.body.itemId, '物品ID', 100, true), '物品不存在');
-      if (quantity > item.availableStock) fail(400, '库存不足');
       if (quantity > item.maxRentalQty) fail(400, `该物品单人限租 ${item.maxRentalQty} 件`);
-      if ((Date.parse(endDate) - Date.parse(startDate)) / dayMs > item.maxRentalDays) fail(400, `租借天数不能超过 ${item.maxRentalDays} 天`);
-      if (store.all('rentals').some(r => r.userId === req.user.id && r.itemId === item.id && ['pending','approved'].includes(r.status) && Date.now() - Date.parse(r.createdAt) < 30000)) fail(400, '请勿重复提交申请');
-      return store.insert('rentals', { userId: req.user.id, itemId: item.id, itemCode: item.code, itemName: item.name, quantity, startDate, endDate, reason, status: item.requireApproval ? 'pending' : 'approved' });
+      let schedule = { bookingMode: 'daily', startDate, endDate, startTime: '', endTime: '' };
+      if (isEquipment(item)) {
+        schedule = slotFields(startDate, endDate, req.body.startTime, req.body.endTime, clock());
+        ensureCapacity(store, item, { ...schedule, quantity }, null, clock());
+      } else {
+        if (endDate <= startDate) fail(400, '结束日须晚于开始日');
+        if (quantity > item.availableStock) fail(400, '库存不足');
+        if ((Date.parse(endDate) - Date.parse(startDate)) / dayMs > item.maxRentalDays) fail(400, `租借天数不能超过 ${item.maxRentalDays} 天`);
+        if (req.body.startTime || req.body.endTime) fail(400, '该物品请按天租借');
+        if (store.all('rentals').some(r => r.userId === req.user.id && r.itemId === item.id && ['pending','approved'].includes(r.status) && Date.now() - Date.parse(r.createdAt) < 30000)) fail(400, '请勿重复提交申请');
+      }
+      return store.insert('rentals', { userId: req.user.id, itemId: item.id, itemCode: item.code, itemName: item.name, quantity, ...schedule, reason, status: item.requireApproval ? 'pending' : 'approved' });
     }); res.status(201).json({ message: '申请已提交，请等待管理员确认', rental: rentalDTO(rental) });
   });
   app.get('/api/rentals', auth, admin, (_, res) => { expireRentals(); res.json(store.all('rentals').map(rentalDTO)); });
   app.get('/api/rentals/my', auth, (req, res) => { expireRentals(); res.json(store.all('rentals').filter(r => r.userId === req.user.id).map(rentalDTO)); });
   function decide(req, rejected = false) {
+    expireRentals();
     return store.transaction(() => {
       const rental = find('rentals', req.params.id, '申请不存在');
       if (rental.status !== 'pending') fail(409, '该申请已经处理，请刷新页面');
       const status = rejected ? 'rejected' : req.body.status;
       if (!['approved','rejected'].includes(status)) fail(400, '审批状态无效');
       if (status === 'approved' && rental.endDate < today()) fail(400, '申请已过期');
+      if (status === 'approved' && rental.bookingMode === 'timeslot') ensureCapacity(store, find('items', rental.itemId, '物品不存在'), rental, rental.id, clock());
       return store.update('rentals', rental.id, { status, adminNotes: text(req.body.adminNotes, '审批备注', 1000), approvedBy: req.user.id, approvedAt: new Date().toISOString() });
     });
   }
@@ -287,7 +315,12 @@ function createApp({ store, jwtSecret = process.env.JWT_SECRET, emailService = d
       const r = find('rentals', req.params.id, '租借记录不存在');
       if (r.status !== 'approved') fail(409, '该记录无需领取');
       const item = find('items', r.itemId, '物品不存在');
-      if (item.availableStock < r.quantity) fail(400, '库存不足');
+      if (r.bookingMode === 'timeslot') {
+        if (clock() < slotStart(r)) fail(400, '预约尚未开始，请在预约时间段内确认使用');
+        if (clock() >= slotEnd(r)) fail(400, '预约时段已结束，无法确认使用');
+        ensureCapacity(store, item, r, r.id, clock());
+      }
+      if (item.availableStock < r.quantity) fail(400, r.bookingMode === 'timeslot' ? '设备仍在使用中或暂不可用，请联系管理员' : '库存不足');
       setStock(item, item.availableStock - r.quantity);
       store.update('users', r.userId, { firstRental: false });
       return store.update('rentals', r.id, { status: 'active', pickedAt: new Date().toISOString() });
@@ -367,8 +400,8 @@ function createApp({ store, jwtSecret = process.env.JWT_SECRET, emailService = d
   app.get('/api/notifications', auth, (req, res) => {
     expireRentals(); const currentDay = today(), alerts = [];
     for (const r of store.all('rentals').filter(r => r.status === 'active' && (['admin','superadmin'].includes(req.user.role) || r.userId === req.user.id))) {
-      const diff = Math.round((Date.parse(r.endDate) - Date.parse(currentDay)) / dayMs), u = store.get('users', r.userId);
-      if (diff <= 2) alerts.push({ rentalId: r.id, username: u?.username || '未知', phone: u?.phone || '', wechat: u?.wechat || '', itemName: r.itemName, endDate: r.endDate, type: diff < 0 ? 'overdue' : 'due_soon', ...(diff < 0 ? { daysOverdue: -diff } : { daysLeft: diff }) });
+      const diff = r.bookingMode === 'timeslot' ? (slotEnd(r) <= clock() ? -Math.max(1,Math.ceil((clock() - slotEnd(r)) / dayMs)) : Math.ceil((slotEnd(r) - clock()) / dayMs)) : Math.round((Date.parse(r.endDate) - Date.parse(currentDay)) / dayMs), u = store.get('users', r.userId);
+      if (diff <= 2) alerts.push({ rentalId: r.id, username: u?.username || '未知', phone: u?.phone || '', wechat: u?.wechat || '', itemName: r.itemName, endDate: rentalDTO(r).endDate, bookingMode: r.bookingMode, type: diff < 0 ? 'overdue' : 'due_soon', ...(diff < 0 ? { daysOverdue: -diff } : { daysLeft: diff }) });
     }
     res.json({ alerts, total: alerts.length, hasOverdue: alerts.some(a => a.type === 'overdue') });
   });
@@ -390,7 +423,7 @@ function createApp({ store, jwtSecret = process.env.JWT_SECRET, emailService = d
   });
   function seedRentals(overdueOnly = false) {
     const users = store.all('users').filter(u => u.isTest && u.active);
-    const items = store.all('items').filter(i => i.availableStock > 0);
+    const items = store.all('items').filter(i => i.availableStock > 0 && !isEquipment(i));
     if (!users.length || !items.length) fail(400, '请先生成测试用户并添加有库存的物品');
     let count = 0;
     store.transaction(() => {
@@ -422,7 +455,7 @@ function createApp({ store, jwtSecret = process.env.JWT_SECRET, emailService = d
   });
   app.get('/api/health', (_, res) => {
     store.db.prepare('SELECT 1').get();
-    res.json({ status: 'ok', storage: 'sqlite', timestamp: new Date().toISOString(), ...store.counts(), emailConfigured: emailService.isConfigured(), backup: app.locals.backupState || { enabled: false, lastSuccess: null } });
+    res.json({ status: 'ok', storage: 'sqlite', schemaVersion: store.db.prepare('PRAGMA user_version').get().user_version, timestamp: new Date().toISOString(), ...store.counts(), emailConfigured: emailService.isConfigured(), backup: app.locals.backupState || { enabled: false, lastSuccess: null } });
   });
   app.use('/api', (_, res) => res.status(404).json({ error: '接口不存在' }));
   app.use((error, req, res, next) => {

@@ -58,7 +58,6 @@ CREATE TABLE IF NOT EXISTS verification_codes (
  userId TEXT REFERENCES users(id) ON DELETE CASCADE, codeHash TEXT NOT NULL,
  expiresAt INTEGER NOT NULL, attempts INTEGER NOT NULL DEFAULT 0, createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL
 );
-PRAGMA user_version = 1;
 `;
 
 const booleans = new Set(['active','firstRental','emailVerified','isTest','requireApproval','isPinned']);
@@ -74,8 +73,19 @@ class Store {
       // Rollback journal works without WAL's shared-memory requirements. Deploy one application instance.
       this.db.exec('PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000; PRAGMA journal_mode=DELETE; PRAGMA synchronous=FULL;');
       const version = this.db.prepare('PRAGMA user_version').get().user_version;
-      if (version > 1) throw new Error('数据库版本高于当前应用，请恢复兼容版本');
-      this.transaction(() => this.db.exec(schema));
+      if (version > 2) throw new Error('数据库版本高于当前应用，请恢复兼容版本');
+      if (version === 1 && this.filename !== ':memory:') {
+        const previous = this.filename + '.pre-v2-' + crypto.randomUUID() + '.sqlite';
+        this.db.prepare('VACUUM INTO ?').run(previous);
+        fs.chmodSync(previous, 0o600);
+      }
+      this.transaction(() => {
+        this.db.exec(schema);
+        if (version < 2) {
+          this.db.exec("ALTER TABLE rentals ADD COLUMN bookingMode TEXT NOT NULL DEFAULT 'daily' CHECK(bookingMode IN ('daily','timeslot')); ALTER TABLE rentals ADD COLUMN startTime TEXT NOT NULL DEFAULT ''; ALTER TABLE rentals ADD COLUMN endTime TEXT NOT NULL DEFAULT ''; CREATE INDEX IF NOT EXISTS rentals_schedule ON rentals(itemId,bookingMode,startDate,status);");
+          this.db.exec("UPDATE items SET category='电子模块' WHERE category='电子产品'; PRAGMA user_version=2;");
+        }
+      });
       this.columns = Object.fromEntries([...tables].map(t => [t, new Set(this.db.prepare(`PRAGMA table_info(${t})`).all().map(c => c.name))]));
       if (this.filename !== ':memory:') fs.chmodSync(this.filename, 0o600);
     } catch (error) { this.db.close(); throw error; }

@@ -430,7 +430,7 @@ tr:hover td{background:linear-gradient(90deg,rgba(99,102,241,.03),transparent)}
         </div>
         <div class="toolbar">
           <input class="input" id="item-search" placeholder="搜索物品..." oninput="renderItems()">
-          <select class="input" id="item-category-filter" onchange="renderItems()"><option value="">全部分类</option><option value="电子产品">电子产品</option><option value="办公用品">办公用品</option><option value="运动器材">运动器材</option><option value="生活用品">生活用品</option></select>
+          <select class="input" id="item-category-filter" onchange="renderItems()"><option value="">全部分类</option><option value="电子模块">电子模块</option><option value="电机电池">电机电池</option><option value="固定设备">固定设备</option></select>
           <select class="input" id="item-status-filter" onchange="renderItems()"><option value="">全部状态</option><option value="available">可租借</option><option value="low_stock">库存不足</option><option value="unavailable">不可租借</option></select>
         </div>
         <div class="items-grid" id="items-grid"></div>
@@ -539,7 +539,7 @@ tr:hover td{background:linear-gradient(90deg,rgba(99,102,241,.03),transparent)}
           <div style="margin-bottom:8px"><input class="input" id="search-items" type="text" placeholder="搜索物品名称..." oninput="renderAdminItems()" style="width:240px;padding:6px 10px;font-size:13px"></div>
           <div class="card" style="padding:0">
             <div class="table-wrap" style="border:none">
-              <table><thead><tr><th>编码</th><th>名称</th><th>分类</th><th>总/可用</th><th>天数</th><th>状态</th><th>操作</th></tr></thead><tbody id="admin-items-table"></tbody></table>
+              <table><thead><tr><th>编码</th><th>名称</th><th>分类</th><th>总/可用</th><th>借用方式</th><th>状态</th><th>操作</th></tr></thead><tbody id="admin-items-table"></tbody></table>
             </div>
           </div>
         </div>
@@ -605,7 +605,7 @@ tr:hover td{background:linear-gradient(90deg,rgba(99,102,241,.03),transparent)}
               <div id="detail-datasheet"></div>
             </div>
             <div class="card" id="detail-rental-card">
-              <div class="detail-section-title">申请租借</div>
+              <div class="detail-section-title" id="detail-rental-title">申请租借</div>
               <div id="detail-rental-form"></div>
             </div>
           </div>
@@ -636,7 +636,7 @@ tr:hover td{background:linear-gradient(90deg,rgba(99,102,241,.03),transparent)}
     <div class="modal-body">
       <div class="form-group"><label class="form-label">名称 *</label><input class="input" id="new-item-name" placeholder="物品名称"></div>
       <div class="form-group"><label class="form-label">编码 *</label><input class="input" id="new-item-code" placeholder="物品编码"></div>
-      <div class="form-group"><label class="form-label">类别</label><select class="input" id="new-item-category"><option>电子产品</option><option>办公用品</option><option>运动器材</option><option>生活用品</option></select></div>
+      <div class="form-group"><label class="form-label">类别</label><select class="input" id="new-item-category" onchange="configureItemCategory('new')"><option>电子模块</option><option>电机电池</option><option>固定设备</option></select></div>
       <div class="form-group"><label class="form-label">描述</label><textarea class="input" id="new-item-desc" rows="2" placeholder="物品描述"></textarea></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
         <div class="form-group"><label class="form-label">总库存 *</label><input class="input" id="new-item-stock" type="number" min="1" value="1"></div>
@@ -663,7 +663,7 @@ tr:hover td{background:linear-gradient(90deg,rgba(99,102,241,.03),transparent)}
       <input type="hidden" id="edit-item-id">
       <div class="form-group"><label class="form-label">名称 *</label><input class="input" id="edit-item-name" placeholder="物品名称"></div>
       <div class="form-group"><label class="form-label">编码 *</label><input class="input" id="edit-item-code" placeholder="物品编码"></div>
-      <div class="form-group"><label class="form-label">类别</label><select class="input" id="edit-item-category"><option>电子产品</option><option>办公用品</option><option>运动器材</option><option>生活用品</option></select></div>
+      <div class="form-group"><label class="form-label">类别</label><select class="input" id="edit-item-category" onchange="configureItemCategory('edit')"><option>电子模块</option><option>电机电池</option><option>固定设备</option></select></div>
       <div class="form-group"><label class="form-label">描述</label><textarea class="input" id="edit-item-desc" rows="2" placeholder="物品描述"></textarea></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
         <div class="form-group"><label class="form-label">总库存</label><input class="input" id="edit-item-stock" type="number" min="1" value="1"></div>
@@ -688,10 +688,7 @@ tr:hover td{background:linear-gradient(90deg,rgba(99,102,241,.03),transparent)}
   <div class="modal"><div class="modal-header"><h3>申请租借</h3><button class="modal-close" onclick="closeRentalModal()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
     <div class="modal-body">
       <div id="rental-item-info" style="background:var(--bg-muted);border-radius:8px;padding:12px;margin-bottom:16px;font-size:14px"></div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-        <div class="form-group"><label class="form-label">开始 *</label><input class="input" id="rental-start" type="date" min=""></div>
-        <div class="form-group"><label class="form-label">结束 *</label><input class="input" id="rental-end" type="date" min=""></div>
-      </div>
+      <div id="rental-schedule-fields"></div>
       <div class="form-group"><label class="form-label">数量</label><select class="input" id="rental-qty"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select></div>
       <div class="form-group"><label class="form-label">用途 *</label><textarea class="input" id="rental-reason" rows="2" placeholder="请说明用途..."></textarea></div>
       <div style="margin:12px 0;padding:12px;background:#fefce8;border:1px solid #fde68a;border-radius:8px;font-size:13px;line-height:1.6;color:#92400e">
@@ -824,7 +821,7 @@ tr:hover td{background:linear-gradient(90deg,rgba(99,102,241,.03),transparent)}
         <div style="margin-bottom:12px">
           <div style="font-weight:600;color:var(--text);margin-bottom:4px">④ 物品管理</div>
           <div>• 查看/新增/编辑/删除物品<br>
-          • 编辑时可修改名称、编码、分类、总库存、最长天数、限租数量等<br>
+          • 类别为电子模块、电机电池、固定设备；固定设备按同一天的开始/结束时间预约，其他类别按天租借<br>• 待审核和已批准的固定设备申请会占用时段，重叠预约受设备数量限制<br>• 编辑时可修改名称、编码、分类、总库存、最长天数、限租数量等<br>
           • 可设置物品是否需要管理员审批、直接上传物品图片和填写数据手册URL<br>
           • 搜索框可按物品名快速查找</div>
         </div>
@@ -888,6 +885,56 @@ const API_URL = '/api';
 let currentUser = null, allItems = [], allRentals = [], myRentals = [], allUsers = [], rentalItemId = null, adminTab = 'approvals', adminContact = null;
 const TK = 'rental_token', UK = 'rental_user';
 function beijingDate(d=new Date()){return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit'}).format(d)}
+function isFixedEquipment(item){return item.category==='固定设备'}
+function canBookItem(item){return isFixedEquipment(item)?item.totalStock>0:item.status!=='unavailable'&&item.availableStock>0}
+function rentalMoment(row,field){return new Intl.DateTimeFormat('zh-CN',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit',...(row.bookingMode==='timeslot'?{hour:'2-digit',minute:'2-digit',hour12:false}:{})}).format(new Date(row[field]))}
+function rentalRange(row){return row.bookingMode==='timeslot'?beijingDate(new Date(row.startDate))+' '+row.startTime+'–'+row.endTime:rentalMoment(row,'startDate')+'–'+rentalMoment(row,'endDate')}
+function overdueLabel(row,now=new Date()){return row.bookingMode==='timeslot'?'使用时段已结束':'逾期'+Math.floor((now-new Date(row.endDate))/86400000)+'天'}
+function configureItemCategory(prefix){
+  const fixed=document.getElementById(prefix+'-item-category').value==='固定设备';
+  document.getElementById(prefix+'-item-days').closest('.form-group').classList.toggle('hidden',fixed);
+  let hint=document.getElementById(prefix+'-item-booking-hint');
+  if(!hint){hint=document.createElement('div');hint.id=prefix+'-item-booking-hint';hint.style.cssText='font-size:12px;color:var(--text-muted);margin-top:8px;line-height:1.7';document.getElementById(prefix+'-item-category').parentElement.appendChild(hint)}
+  hint.textContent=fixed?'固定设备按同一天的时段预约；不同机器可分别建物品，同类设备共用一条时，重叠预约受总数量限制。':'按天租借，可设置最长天数和单人限租数量。';
+}
+function rentalScheduleFields(prefix,item){
+  const fixed=isFixedEquipment(item);
+  return `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px">
+    <div class="form-group"><label class="form-label" for="${prefix}-start">${fixed?'预约日期':'开始日期'} *</label><input class="input" id="${prefix}-start" type="date" min="${beijingDate()}" onchange="${fixed?`loadEquipmentAvailability('${prefix}','${item.id}')`:''}"></div>
+    ${fixed?`<input type="hidden" id="${prefix}-end"><div class="form-group"><label class="form-label" for="${prefix}-start-time">开始时间 *</label><input class="input" id="${prefix}-start-time" type="time" step="60"></div><div class="form-group"><label class="form-label" for="${prefix}-end-time">结束时间 *</label><input class="input" id="${prefix}-end-time" type="time" step="60"></div>`:`<div class="form-group"><label class="form-label" for="${prefix}-end">结束日期 *</label><input class="input" id="${prefix}-end" type="date" min="${beijingDate()}"></div>`}
+    </div>${fixed?`<div style="font-size:12px;color:var(--text-muted);line-height:1.7;margin-bottom:12px">同一天内使用，时间按北京时间填写。待审核及已批准的申请会占用时段；相邻时段可接续预约。</div><div id="${prefix}-availability" role="status" aria-live="polite" style="font-size:13px;background:var(--bg-muted);padding:12px;border-radius:8px;margin-bottom:12px;line-height:1.8"></div>`:''}`;
+}
+function initialiseRentalSchedule(prefix,item){
+  document.getElementById(prefix+'-start').value=beijingDate();document.getElementById(prefix+'-end').value='';
+  if(isFixedEquipment(item))loadEquipmentAvailability(prefix,item.id);
+}
+let availabilityVersion=0;
+async function loadEquipmentAvailability(prefix,itemId){
+  const date=document.getElementById(prefix+'-start').value,node=document.getElementById(prefix+'-availability');if(!node)return;
+  const version=++availabilityVersion;document.getElementById(prefix+'-end').value=date;
+  node.textContent=date?'正在查询已预约时段…':'请先选择预约日期';if(!date)return;
+  try{
+    const result=await api('GET','/items/'+itemId+'/availability?date='+encodeURIComponent(date));
+    if(version!==availabilityVersion||document.getElementById(prefix+'-availability')!==node)return;
+    node.textContent=result.legacyBlocked?'该设备仍有旧的按天租借，请联系管理员结束旧租借后再预约时段。':'可预约设备：'+result.capacity+' 台。'+(result.bookings.length?'已占用时段：'+result.bookings.map(b=>b.startTime+'–'+b.endTime+'（'+b.quantity+'台）').join('；'):'当天暂无预约。')+' 提交时会再次核对余量。';
+  }catch(error){if(version===availabilityVersion&&document.getElementById(prefix+'-availability')===node)node.textContent='时段查询失败：'+error.message+'，可重新选择日期重试。'}
+}
+function rentalRequest(prefix,item){
+  const startDate=document.getElementById(prefix+'-start').value,endDate=isFixedEquipment(item)?startDate:document.getElementById(prefix+'-end').value;
+  const quantity=Number(document.getElementById(prefix+'-qty').value),reason=document.getElementById(prefix+'-reason').value.trim();
+  if(!startDate||!endDate)throw new Error('请选择日期');
+  if(startDate<beijingDate())throw new Error('开始时间不能早于今天');
+  if(!reason)throw new Error('请填写用途');
+  if(!document.getElementById(prefix+'-agree-compensation').checked)throw new Error('请阅读并同意赔偿条款');
+  const body={itemId:item.id,quantity,startDate,endDate,reason};
+  if(isFixedEquipment(item)){
+    body.startTime=document.getElementById(prefix+'-start-time').value;body.endTime=document.getElementById(prefix+'-end-time').value;
+    if(!body.startTime||!body.endTime)throw new Error('请选择开始和结束时间');
+    if(body.endTime<=body.startTime)throw new Error('结束时间必须晚于开始时间');
+    if(Date.parse(startDate+'T'+body.startTime+':00+08:00')<Date.now())throw new Error('预约开始时间不能早于当前时间');
+  }else if(endDate<=startDate)throw new Error('结束日须晚于开始日');
+  return body;
+}
 function gt(){return localStorage.getItem(TK)||sessionStorage.getItem(TK)}
 function st(t){const rm=document.getElementById('remember-me'),remember=!!localStorage.getItem(TK)||!!(rm&&rm.checked);localStorage.removeItem(TK);sessionStorage.removeItem(TK);(remember?localStorage:sessionStorage).setItem(TK,t)}
 function esc(s){const d=document.createElement('div');d.textContent=s||'';return d.innerHTML}
@@ -993,6 +1040,15 @@ function switchPage(page){
   document.getElementById('page-title').textContent=PT[page]||page;
   document.getElementById('sidebar').classList.remove('open');document.getElementById('sidebar-overlay').classList.remove('open');
   renderPage(page);
+  if(page==='admin'||page==='my-rentals')refreshRentalPage(page);
+}
+async function refreshRentalPage(page){
+  try{
+    const rows=await api('GET',page==='admin'?'/rentals':'/rentals/my');
+    if(page==='admin')allRentals=rows;else myRentals=rows;
+    if(document.getElementById('page-'+page).classList.contains('hidden'))return;
+    if(page==='admin')switchAdminTab(adminTab);else renderMyRentals();
+  }catch(error){toast('租借记录刷新失败：'+error.message,'error')}
 }
 function renderPage(p){if(p==='dashboard')renderDashboard();else if(p==='items')renderItems();else if(p==='my-rentals')renderMyRentals();else if(p==='profile')renderProfile();else if(p==='admin')renderAdminApprovals();else if(p==='detail')renderDetail()}
 
@@ -1003,7 +1059,7 @@ function toggleAlerts(){
   if(l.style.display==="none"){l.style.display="";t.textContent="收起"}else{l.style.display="none";t.textContent="展开"}
 }
 function renderDashboard(){
-  const av=allItems.filter(i=>i.status!=='unavailable');
+  const av=allItems.filter(canBookItem);
   document.getElementById('stat-items').textContent=av.length;
   document.getElementById('stat-available').textContent=av.reduce((s,i)=>s+i.availableStock,0);
   document.getElementById('stat-my-active').textContent=myRentals.filter(r=>r.status==='active').length;
@@ -1020,7 +1076,7 @@ function renderDashboard(){
       document.getElementById('alert-toggle').textContent='收起严重逾期 ('+severe.length+')';
     }
     if(normal.length){
-      list.innerHTML+=normal.map(a=>`<div class="alert alert-danger"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg><span><strong>${esc(a.username)}</strong> 的 <strong>${esc(a.itemName)}</strong> 已逾期 <strong>${a.daysOverdue}</strong> 天${a.phone?' · '+esc(a.phone):''}</span></div>`).join('');
+      list.innerHTML+=normal.map(a=>`<div class="alert alert-danger"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg><span><strong>${esc(a.username)}</strong> 的 <strong>${esc(a.itemName)}</strong> ${a.bookingMode==='timeslot'?'使用时段已结束':'已逾期 <strong>'+a.daysOverdue+'</strong> 天'}${a.phone?' · '+esc(a.phone):''}</span></div>`).join('');
     }
     document.getElementById('alert-toggle').onclick=toggleAlerts;
   }).catch(()=>{});
@@ -1040,19 +1096,19 @@ function renderItems(){
 }
 
 function itemCard(item){
-  const canRent=item.status!=='unavailable'&&item.availableStock>0,cc={'电子产品':'#3b82f6','办公用品':'#10b981','运动器材':'#f59e0b','生活用品':'#8b5cf6'},co=cc[item.category]||'#6b7280';
+  const canRent=canBookItem(item),cc={'电子模块':'#3b82f6','电机电池':'#10b981','固定设备':'#f59e0b'},co=cc[item.category]||'#6b7280';
   const stxt={available:'可租借',low_stock:'库存不足',unavailable:'不可租借'};
   return `<div class="card card-hover item-card" onclick="showDetailPage('${item.id}')">
     ${item.image?`<img class="item-card-image" src="${escUrl(item.image)}" alt="${esc(item.name)}" onerror="this.parentElement.innerHTML='<div style=\\'aspect-ratio:4/3;display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:13px;border-radius:8px;background:var(--bg-muted);margin-bottom:10px\\'>图片加载失败</div>'">`:''}
     <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:8px">
       <div style="flex:1"><div class="item-name">${esc(item.name)}</div><div class="item-code">${esc(item.code)}</div></div>
-      <span class="badge badge-${item.status}">${stxt[item.status]||item.status}</span>
+      <span class="badge badge-${item.status}">${isFixedEquipment(item)&&canRent?'按时段预约':stxt[item.status]||item.status}</span>
     </div>
     <span class="item-category-tag" style="background:${co}15;color:${co}">${esc(item.category)}</span>
     <div class="item-desc">${esc(item.description)||'暂无描述'}</div>
     <div class="item-meta">
       <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>可用 ${item.availableStock}/${item.totalStock}</span>
-      <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>最长${item.maxRentalDays}天</span><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>限租${item.maxRentalQty||5}件</span>
+      <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>${isFixedEquipment(item)?'按时段预约':'最长'+item.maxRentalDays+'天'}</span><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>限租${item.maxRentalQty||5}件</span>
     </div>
     ${item.requireApproval?'<div style="font-size:12px;color:#f59e0b;margin-bottom:8px;display:flex;align-items:center;gap:4px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>需要管理员审核</div>':''}
     <div class="item-actions">
@@ -1077,9 +1133,9 @@ function renderMyRentals(){
     const status=isOverdue?'overdue':r.status;
     return `<tr ${isOverdue?'style="background:#fef2f2"':''}>
       <td><strong>${esc(r.itemName)}</strong></td><td>${r.quantity}</td>
-      <td style="font-size:13px">${new Date(r.startDate).toLocaleDateString()}</td><td style="font-size:13px">${new Date(r.endDate).toLocaleDateString()}</td>
+      <td style="font-size:13px">${rentalMoment(r,'startDate')}</td><td style="font-size:13px">${rentalMoment(r,'endDate')}</td>
       <td><span class="badge badge-${status}">${sm[status]||r.status}</span></td>
-      <td style="font-size:13px;color:var(--text-muted)">${isOverdue?'已逾期，请联系管理员归还':st[r.status]||'-'}</td>
+      <td style="font-size:13px;color:var(--text-muted)">${r.bookingMode==='timeslot'?(isOverdue?'时段已结束，请联系管理员结束使用':({pending:'等待管理员审核',approved:'请在预约时段内联系管理员开始使用',active:'请按预约结束时间结束使用'}[r.status]||st[r.status]||'-')):isOverdue?'已逾期，请联系管理员归还':st[r.status]||'-'}</td>
     </tr>`;
   }).join('');
 }
@@ -1107,7 +1163,7 @@ function renderAdminApprovals(){
   e.classList.add('hidden');
 	  t.innerHTML=p.map(r=>`<tr>
     <td>${r.userName||r.userId}${r.userNickname?' ('+r.userNickname+')':''}</td><td><strong>${r.itemName}</strong></td><td>${r.quantity}</td>
-	    <td style="font-size:13px">${new Date(r.startDate).toLocaleDateString()}-${new Date(r.endDate).toLocaleDateString()}</td>
+	    <td style="font-size:13px">${rentalRange(r)}</td>
     <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;color:var(--text-secondary)" title="${r.reason||''}">${r.reason||'-'}</td>
     <td><div style="display:flex;gap:6px">
       <button class="btn btn-success btn-sm" onclick="approveRental('${r.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>通过</button>
@@ -1132,8 +1188,8 @@ function renderAdminPickup(){
   e.classList.add('hidden');
 	  t.innerHTML=p.map(r=>{const _n=new Date(),_od=_n>new Date(r.endDate)?' style="background:#fef2f2"':'';return `<tr${_od}>
     <td>${r.userName||r.userId}${r.userNickname?' ('+r.userNickname+')':''}</td><td><strong>${r.itemName}</strong></td><td>${r.quantity}</td>
-    <td style="font-size:13px">${new Date(r.startDate).toLocaleDateString()}-${new Date(r.endDate).toLocaleDateString()}${_n>new Date(r.endDate)?`<span style="color:#dc2626;font-weight:600;margin-left:8px">已过期</span>`:``}</td>
-    <td><div style="display:flex;gap:4px">${_n>new Date(r.endDate)?`<button class="btn btn-danger btn-sm" onclick="deleteRental('${r.id}')">删除</button>`:``}<button class="btn btn-primary btn-sm" onclick="pickupRental('${r.id}')">确认领取</button></div></td>
+    <td style="font-size:13px">${rentalRange(r)}${_n>new Date(r.endDate)?`<span style="color:#dc2626;font-weight:600;margin-left:8px">已过期</span>`:``}</td>
+    <td><div style="display:flex;gap:4px">${_n>new Date(r.endDate)?`<button class="btn btn-danger btn-sm" onclick="deleteRental('${r.id}')">删除</button>`:``}<button class="btn btn-primary btn-sm" onclick="pickupRental('${r.id}')">${r.bookingMode==='timeslot'?'开始使用':'确认领取'}</button></div></td>
   </tr>`}).join('');
 }
 async function pickupRental(id){
@@ -1152,8 +1208,8 @@ function renderAdminActive(){
   e.classList.add('hidden');
 	  t.innerHTML=a.map(r=>{const _n2=new Date(),_od2=_n2>new Date(r.endDate)?' style="background:#fef2f2"':'';return `<tr${_od2}>
     <td>${r.userName||r.userId}${r.userNickname?' ('+r.userNickname+')':''}</td><td><strong>${r.itemName}</strong></td><td>${r.quantity}</td>
-    <td style="font-size:13px">${new Date(r.startDate).toLocaleDateString()}-${new Date(r.endDate).toLocaleDateString()}${_n2>new Date(r.endDate)?`<span style="color:#dc2626;font-weight:600;margin-left:8px">逾期${Math.floor((_n2-new Date(r.endDate))/86400000)}天</span>`:``}</td>
-    <td>${r.status==='approved'?`<button class="btn btn-primary btn-sm" onclick="pickupRental('${r.id}')">确认领取</button>`:`<button class="btn btn-warning btn-sm" onclick="returnRental('${r.id}')">确认归还</button>`}</td>
+    <td style="font-size:13px">${rentalRange(r)}${_n2>new Date(r.endDate)?`<span style="color:#dc2626;font-weight:600;margin-left:8px">${overdueLabel(r,_n2)}</span>`:``}</td>
+    <td>${r.status==='approved'?`<button class="btn btn-primary btn-sm" onclick="pickupRental('${r.id}')">${r.bookingMode==='timeslot'?'开始使用':'确认领取'}</button>`:`<button class="btn btn-warning btn-sm" onclick="returnRental('${r.id}')">${r.bookingMode==='timeslot'?'结束使用':'确认归还'}</button>`}</td>
   </tr>`}).join('');
 }
 async function returnRental(id){
@@ -1164,7 +1220,7 @@ async function returnRental(id){
 function renderAdminItems(){
   const sq=document.getElementById('search-items').value.toLowerCase().trim();const fi=sq?allItems.filter(i=>i.name?.toLowerCase().includes(sq)):allItems;document.getElementById('admin-items-table').innerHTML=fi.map(i=>`<tr>
     <td style="font-size:13px;color:var(--text-muted)">${i.code}</td><td><strong>${i.name}</strong></td>
-    <td>${i.category}</td><td>${i.totalStock}/${i.availableStock}</td><td>${i.maxRentalDays}天</td>
+    <td>${i.category}</td><td>${i.totalStock}/${i.availableStock}</td><td>${isFixedEquipment(i)?'按时段预约':i.maxRentalDays+'天'}</td>
     <td><span class="badge badge-${i.status}">${i.status==='available'?'可租借':i.status==='low_stock'?'库存不足':'不可租借'}</span></td>
     <td><div style="display:flex;gap:4px">
       <button class="btn btn-outline btn-sm" onclick="showEditItemModal('${i.id}')">编辑</button>
@@ -1234,7 +1290,7 @@ function showStatsDetail(type,filter){
   if(type==='items'){
     title.textContent='物品列表 ('+allItems.length+'件)';
     thead.innerHTML='<tr><th>编码</th><th>名称</th><th>分类</th><th>可用/总库存</th><th>最长天数</th><th>状态</th></tr>';
-    tbody.innerHTML=allItems.map(i=>`<tr><td style="font-size:13px;color:var(--text-muted)">${esc(i.code)}</td><td><strong>${esc(i.name)}</strong></td><td>${esc(i.category)}</td><td>${i.availableStock}/${i.totalStock}</td><td>${i.maxRentalDays}天</td><td><span class="badge badge-${i.status}">${i.status==='available'?'可租借':i.status==='low_stock'?'库存不足':'不可租借'}</span></td></tr>`).join('');
+    tbody.innerHTML=allItems.map(i=>`<tr><td style="font-size:13px;color:var(--text-muted)">${esc(i.code)}</td><td><strong>${esc(i.name)}</strong></td><td>${esc(i.category)}</td><td>${i.availableStock}/${i.totalStock}</td><td>${isFixedEquipment(i)?'按时段预约':i.maxRentalDays+'天'}</td><td><span class="badge badge-${i.status}">${i.status==='available'?'可租借':i.status==='low_stock'?'库存不足':'不可租借'}</span></td></tr>`).join('');
   }else if(type==='users'){
     title.textContent='用户列表 ('+allUsers.length+'人)';
     const rm={superadmin:'超级管理员',admin:'管理员',user:'普通用户'};
@@ -1243,24 +1299,24 @@ function showStatsDetail(type,filter){
   }else if(type==='rentals'){
     title.textContent='租借记录 ('+allRentals.length+'条)';
     thead.innerHTML='<tr><th>用户</th><th>物品</th><th>数量</th><th>开始</th><th>结束</th><th>状态</th></tr>';
-    tbody.innerHTML=allRentals.map(r=>`<tr><td>${esc(r.userName||r.userId)}${r.userNickname?' ('+esc(r.userNickname)+')':''}</td><td><strong>${esc(r.itemName)}</strong></td><td>${r.quantity}</td><td>${new Date(r.startDate).toLocaleDateString()}</td><td>${new Date(r.endDate).toLocaleDateString()}</td><td><span class="badge badge-${r.status}">${sm[r.status]||r.status}</span></td></tr>`).join('');
+    tbody.innerHTML=allRentals.map(r=>`<tr><td>${esc(r.userName||r.userId)}${r.userNickname?' ('+esc(r.userNickname)+')':''}</td><td><strong>${esc(r.itemName)}</strong></td><td>${r.quantity}</td><td>${rentalMoment(r,'startDate')}</td><td>${rentalMoment(r,'endDate')}</td><td><span class="badge badge-${r.status}">${sm[r.status]||r.status}</span></td></tr>`).join('');
   }else if(type==='pending'){
     const p=allRentals.filter(r=>r.status==='pending');
     title.textContent='待审核申请 ('+p.length+'条)';
     thead.innerHTML='<tr><th>用户</th><th>物品</th><th>数量</th><th>日期</th><th>用途</th></tr>';
-    tbody.innerHTML=p.length===0?'<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:24px">暂无数据</td></tr>':p.map(r=>`<tr><td>${esc(r.userName||r.userId)}${r.userNickname?' ('+esc(r.userNickname)+')':''}</td><td><strong>${esc(r.itemName)}</strong></td><td>${r.quantity}</td><td style="font-size:13px">${new Date(r.startDate).toLocaleDateString()}-${new Date(r.endDate).toLocaleDateString()}</td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;color:var(--text-secondary)" title="${esc(r.reason||'')}">${esc(r.reason)||'-'}</td></tr>`).join('');
+    tbody.innerHTML=p.length===0?'<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:24px">暂无数据</td></tr>':p.map(r=>`<tr><td>${esc(r.userName||r.userId)}${r.userNickname?' ('+esc(r.userNickname)+')':''}</td><td><strong>${esc(r.itemName)}</strong></td><td>${r.quantity}</td><td style="font-size:13px">${rentalRange(r)}</td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;color:var(--text-secondary)" title="${esc(r.reason||'')}">${esc(r.reason)||'-'}</td></tr>`).join('');
   }else if(type==='status'){
     const list=allRentals.filter(r=>r.status===filter);
     title.textContent=(sm[filter]||filter)+' ('+list.length+'条)';
     thead.innerHTML='<tr><th>用户</th><th>物品</th><th>数量</th><th>开始</th><th>结束</th><th>状态</th></tr>';
-    tbody.innerHTML=list.length===0?'<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:24px">暂无数据</td></tr>':list.map(r=>`<tr><td>${esc(r.userName||r.userId)}${r.userNickname?' ('+esc(r.userNickname)+')':''}</td><td><strong>${esc(r.itemName)}</strong></td><td>${r.quantity}</td><td>${new Date(r.startDate).toLocaleDateString()}</td><td>${new Date(r.endDate).toLocaleDateString()}</td><td><span class="badge badge-${r.status}">${sm[r.status]||r.status}</span></td></tr>`).join('');
+    tbody.innerHTML=list.length===0?'<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:24px">暂无数据</td></tr>':list.map(r=>`<tr><td>${esc(r.userName||r.userId)}${r.userNickname?' ('+esc(r.userNickname)+')':''}</td><td><strong>${esc(r.itemName)}</strong></td><td>${r.quantity}</td><td>${rentalMoment(r,'startDate')}</td><td>${rentalMoment(r,'endDate')}</td><td><span class="badge badge-${r.status}">${sm[r.status]||r.status}</span></td></tr>`).join('');
   }else if(type==='overdue'){
     const now=new Date();const list=allRentals.filter(r=>r.status==='active'&&new Date(r.endDate)<now);
     title.textContent='逾期租借 ('+list.length+'条)';
     thead.innerHTML='<tr><th>用户</th><th>物品</th><th>数量</th><th>结束日期</th><th>逾期天数</th><th>操作</th></tr>';
     tbody.innerHTML=list.length===0?'<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:24px">暂无逾期</td></tr>':list.map(r=>{
       const days=Math.floor((now-new Date(r.endDate))/(86400000));
-      return `<tr style="background:#fef2f2"><td>${r.userName||r.userId}${r.userNickname?' ('+r.userNickname+')':''}</td><td><strong>${r.itemName}</strong></td><td>${r.quantity}</td><td>${new Date(r.endDate).toLocaleDateString()}</td><td><span style="color:#dc2626;font-weight:600">${days}天</span></td><td><button class="btn btn-sm btn-warning" onclick="urgeRental('${r.id}')">催还</button></td></tr>`;
+      return `<tr style="background:#fef2f2"><td>${r.userName||r.userId}${r.userNickname?' ('+r.userNickname+')':''}</td><td><strong>${r.itemName}</strong></td><td>${r.quantity}</td><td>${rentalMoment(r,'endDate')}</td><td><span style="color:#dc2626;font-weight:600">${days}天</span></td><td><button class="btn btn-sm btn-warning" onclick="urgeRental('${r.id}')">催还</button></td></tr>`;
     }).join('');
   }
   else if(type==='severe_overdue'){
@@ -1269,7 +1325,7 @@ function showStatsDetail(type,filter){
     thead.innerHTML='<tr><th>用户</th><th>物品</th><th>数量</th><th>结束日期</th><th>逾期天数</th><th>操作</th></tr>';
     tbody.innerHTML=list.length===0?'<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:24px">暂无</td></tr>':list.map(r=>{
       const days=Math.floor((now-new Date(r.endDate))/(86400000));
-      return `<tr style="background:#fef2f2"><td>${r.userName||r.userId}${r.userNickname?' ('+esc(r.userNickname)+')':''}</td><td><strong>${r.itemName}</strong></td><td>${r.quantity}</td><td>${new Date(r.endDate).toLocaleDateString()}</td><td><span style="color:#7f1d1d;font-weight:700;font-size:15px">${days}天</span></td><td><button class="btn btn-sm btn-warning" onclick="urgeRental('${r.id}')">催还</button></td></tr>`;
+      return `<tr style="background:#fef2f2"><td>${r.userName||r.userId}${r.userNickname?' ('+esc(r.userNickname)+')':''}</td><td><strong>${r.itemName}</strong></td><td>${r.quantity}</td><td>${rentalMoment(r,'endDate')}</td><td><span style="color:#7f1d1d;font-weight:700;font-size:15px">${days}天</span></td><td><button class="btn btn-sm btn-warning" onclick="urgeRental('${r.id}')">催还</button></td></tr>`;
     }).join('');
 }
 }
@@ -1373,7 +1429,7 @@ async function uploadItemImage(prefix,file){
 function showAddItemModal(){
   resetItemImage('new');
   ['new-item-name','new-item-code','new-item-desc','new-item-datasheet'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});
-  document.getElementById('new-item-category').value='电子产品';
+  document.getElementById('new-item-category').value='电子模块';configureItemCategory('new');
   document.getElementById('new-item-stock').value='1';document.getElementById('new-item-days').value='7';
   document.getElementById('new-item-max-qty').value='5';document.getElementById('new-item-approval').value='false';document.getElementById('new-item-value').value='0';
   document.getElementById('add-item-modal').classList.remove('hidden');enableBtn(document.querySelector('#add-item-modal .btn-primary'))
@@ -1384,7 +1440,7 @@ function showEditItemModal(id){
   document.getElementById('edit-item-id').value=i.id;
   document.getElementById('edit-item-name').value=i.name;
   document.getElementById('edit-item-code').value=i.code;
-  document.getElementById('edit-item-category').value=i.category;
+  document.getElementById('edit-item-category').value=i.category;configureItemCategory('edit');
   document.getElementById('edit-item-desc').value=i.description||'';
   document.getElementById('edit-item-stock').value=i.totalStock;
   document.getElementById('edit-item-days').value=i.maxRentalDays;
@@ -1429,7 +1485,7 @@ function renderDetail(){
   const i=allItems.find(x=>x.id===detailItemId);if(!i)return;
   document.getElementById('detail-page-title').textContent=i.name;
   const stxt={available:'可租借',low_stock:'库存不足',unavailable:'不可租借'};
-  const colors={电子产品:'#3b82f6',办公用品:'#10b981',运动器材:'#f59e0b',生活用品:'#8b5cf6'};
+  const colors={电子模块:'#3b82f6',电机电池:'#10b981',固定设备:'#f59e0b'};
 
   // Image
   if(escUrl(i.image)){
@@ -1444,7 +1500,7 @@ function renderDetail(){
     <div class="detail-meta-item"><div class="meta-label">分类</div><div class="meta-value" style="font-size:13px;color:${colors[i.category]||'#6b7280'}">${esc(i.category)}</div></div>
     <div class="detail-meta-item"><div class="meta-label">可用 / 总库存</div><div class="meta-value">${i.availableStock} <span style="font-size:12px;color:var(--text-muted);font-weight:400">/ ${i.totalStock}</span></div></div>
     <div class="detail-meta-item"><div class="meta-label">限租数量</div><div class="meta-value" style="font-size:13px">${i.maxRentalQty||5} 件</div></div>
-    <div class="detail-meta-item"><div class="meta-label">最长租期</div><div class="meta-value" style="font-size:13px">${i.maxRentalDays} 天</div></div>
+    <div class="detail-meta-item"><div class="meta-label">借用方式</div><div class="meta-value" style="font-size:13px">${isFixedEquipment(i)?'同一天的时间段':i.maxRentalDays+'天内'}</div></div>
     <div class="detail-meta-item"><div class="meta-label">状态</div><span class="badge badge-${i.status}" style="font-size:12px">${esc(stxt[i.status]||i.status)}</span></div>
   `;
 
@@ -1455,18 +1511,16 @@ function renderDetail(){
   document.getElementById('detail-datasheet').innerHTML=i.datasheetUrl&&/^https?:\/\//i.test(i.datasheetUrl)?`<a href="${i.datasheetUrl}" target="_blank" class="btn btn-outline btn-sm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>查看数据手册</a>`:'';
 
   // Rental form
-  const canRent=i.status!=='unavailable'&&i.availableStock>0;
+  const canRent=canBookItem(i);
   const rentalCard=document.getElementById('detail-rental-card');
   const rentalForm=document.getElementById('detail-rental-form');
+  document.getElementById('detail-rental-title').textContent=isFixedEquipment(i)?'预约使用':'申请租借';
   if(canRent&&currentUser){
     rentalCard.classList.remove('hidden');
-    const maxQ=i.maxRentalQty||5;
+    const maxQ=Math.min(i.maxRentalQty||5,isFixedEquipment(i)?i.totalStock:i.availableStock);
     const qtyOpts=Array.from({length:Math.min(maxQ,10)},(_,k)=>`<option>${k+1}</option>`).join('');
     rentalForm.innerHTML=`
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-        <div class="form-group"><label class="form-label">开始日期 *</label><input class="input" id="detail-rental-start" type="date" min=""></div>
-        <div class="form-group"><label class="form-label">结束日期 *</label><input class="input" id="detail-rental-end" type="date" min=""></div>
-      </div>
+      ${rentalScheduleFields('detail-rental',i)}
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
         <div class="form-group"><label class="form-label">租借数量</label><select class="input" id="detail-rental-qty">${qtyOpts}</select></div>
         <div class="form-group" style="display:flex;align-items:flex-end;padding-bottom:2px">
@@ -1481,10 +1535,7 @@ function renderDetail(){
         </label>
       </div>
     `;
-    const today=beijingDate();
-    document.getElementById('detail-rental-start').setAttribute('min',today);document.getElementById('detail-rental-end').setAttribute('min',today);
-    document.getElementById('detail-rental-start').value=today;
-    document.getElementById('detail-rental-end').value='';
+    initialiseRentalSchedule('detail-rental',i);
   }else{
     rentalCard.classList.remove('hidden');
     rentalForm.innerHTML=canRent?`<div style="text-align:center;padding:16px;color:var(--text-muted)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:32px;height:32px;margin-bottom:8px;opacity:.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg><p style="font-size:13px">请先登录后再申请租借</p></div>`:`<div style="text-align:center;padding:16px;color:var(--text-muted)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:32px;height:32px;margin-bottom:8px;opacity:.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><p style="font-size:13px">该物品当前不可租借</p></div>`;
@@ -1498,12 +1549,9 @@ function renderDetail(){
 async function handleDetailRental(){
   const btn=document.querySelector('#detail-rental-form .btn-primary');
   if(!disableBtn(btn,'提交中...'))return;
-  const s=document.getElementById('detail-rental-start').value,e=document.getElementById('detail-rental-end').value;
-  const q=parseInt(document.getElementById('detail-rental-qty').value),r=document.getElementById('detail-rental-reason').value.trim();
-  const todayStr=beijingDate();
-  if(!s||!e){enableBtn(btn);toast('请选择日期','error');return}if(!r){enableBtn(btn);toast('请填写用途','error');return}if(new Date(e)<=new Date(s)){enableBtn(btn);toast('结束日须晚于开始日','error');return}if(s<todayStr){enableBtn(btn);toast('开始时间不能早于今天','error');return}if(!document.getElementById('detail-rental-agree-compensation').checked){enableBtn(btn);toast('请阅读并同意赔偿条款','error');return}
   try{
-    await api('POST','/rentals',{itemId:detailItemId,quantity:q,startDate:s,endDate:e,reason:r});
+    const item=allItems.find(i=>i.id===detailItemId);if(!item)throw new Error('物品不存在，请刷新');
+    await api('POST','/rentals',rentalRequest('detail-rental',item));
     toast('申请已提交');goBackFromDetail();allItems=await api('GET','/items');myRentals=await api('GET','/rentals/my');renderItems();renderMyRentals();renderDashboard()
   }catch(e){enableBtn(btn);toast(e.message,'error')}
 }
@@ -1516,7 +1564,7 @@ function renderComments(){
   const list=document.getElementById('comment-list');
   if(dComments.length===0){list.innerHTML='<div style="text-align:center;padding:24px;color:var(--text-muted)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:36px;height:36px;margin-bottom:8px;opacity:.3"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><p style="font-size:13px">暂无评论，来发表第一条吧</p></div>';return}
   const isAdmin=currentUser&&(currentUser.role==='admin'||currentUser.role==='superadmin');
-  const cc={电子产品:'#3b82f6',办公用品:'#10b981',运动器材:'#f59e0b',生活用品:'#8b5cf6'};
+  const cc={电子模块:'#3b82f6',电机电池:'#10b981',固定设备:'#f59e0b'};
   list.innerHTML=dComments.map(c=>{
     const avatarColor=cc[c.userRole]||'#6366f1';
     const displayName=c.nickname||c.username||'未知';
@@ -1556,10 +1604,9 @@ async function pinComment(id){
 
 function showRentalModal(id){
   rentalItemId=id;const i=allItems.find(x=>x.id===id);if(!i)return;
-  document.getElementById('rental-item-info').innerHTML=`<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:var(--text-muted)">物品</span><span><strong>${esc(i.name)}</strong> (${esc(i.code)})</span></div><div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:var(--text-muted)">可用库存</span><span>${i.availableStock}</span></div><div style="display:flex;justify-content:space-between"><span style="color:var(--text-muted)">最长租期</span><span>${i.maxRentalDays}天</span></div>`;
-  const today=beijingDate();
-  document.getElementById('rental-start').setAttribute('min',today);document.getElementById('rental-end').setAttribute('min',today);
-  document.getElementById('rental-start').value=today;document.getElementById('rental-end').value='';
+  document.getElementById('rental-item-info').innerHTML=`<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:var(--text-muted)">物品</span><span><strong>${esc(i.name)}</strong> (${esc(i.code)})</span></div><div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:var(--text-muted)">可用库存</span><span>${i.availableStock}</span></div><div style="display:flex;justify-content:space-between"><span style="color:var(--text-muted)">借用方式</span><span>${isFixedEquipment(i)?'按时段预约':i.maxRentalDays+'天'}</span></div>`;
+  document.getElementById('rental-schedule-fields').innerHTML=rentalScheduleFields('rental',i);initialiseRentalSchedule('rental',i);
+  document.getElementById('rental-qty').innerHTML=Array.from({length:Math.min(i.maxRentalQty||5,isFixedEquipment(i)?i.totalStock:i.availableStock,10)},(_,n)=>`<option>${n+1}</option>`).join('');
   document.getElementById('rental-qty').value='1';document.getElementById('rental-reason').value='';
   document.getElementById('rental-modal').classList.remove('hidden');enableBtn(document.querySelector('#rental-modal .btn-primary'))
 }
@@ -1567,11 +1614,9 @@ function closeRentalModal(){document.getElementById('rental-modal').classList.ad
 async function handleApplyRental(){
   const btn=document.querySelector('#rental-modal .btn-primary');
   if(!disableBtn(btn,'提交中...'))return;
-  const s=document.getElementById('rental-start').value,e=document.getElementById('rental-end').value,q=parseInt(document.getElementById('rental-qty').value),r=document.getElementById('rental-reason').value.trim();if(!document.getElementById('rental-agree-compensation').checked){enableBtn(btn);toast('请阅读并同意赔偿条款','error');return}
-  const today=beijingDate();
-  if(!s||!e){enableBtn(btn);toast('请选择日期','error');return}if(!r){enableBtn(btn);toast('请填写用途','error');return}if(new Date(e)<=new Date(s)){enableBtn(btn);toast('结束日须晚于开始日','error');return}if(s<today){enableBtn(btn);toast('开始时间不能早于今天','error');return}
   try{
-    await api('POST','/rentals',{itemId:rentalItemId,quantity:q,startDate:s,endDate:e,reason:r});
+    const item=allItems.find(i=>i.id===rentalItemId);if(!item)throw new Error('物品不存在，请刷新');
+    await api('POST','/rentals',rentalRequest('rental',item));
     toast('申请已提交');closeRentalModal();myRentals=await api('GET','/rentals/my');allItems=await api('GET','/items');renderMyRentals();renderDashboard()
   }catch(e){enableBtn(btn);toast(e.message,'error')}
 }
