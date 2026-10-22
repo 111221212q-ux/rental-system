@@ -1,6 +1,6 @@
 # 交接文档
 
-> 当前方案：SQLite 文件数据库。2026-10-22 用户明确放弃旧库迁移，从新数据开始。
+> 当前方案：SQLite 文件数据库。2026-10-23 用户要求找回 Atlas 历史数据，通过独立终端工具合并，保留现有数据。
 
 ## 项目与运行入口
 
@@ -14,6 +14,15 @@
 - 备份：`backend/backup.js`，可手动执行 `npm run backup`。
 
 ## 当前进度
+
+### 2026-10-23 历史数据恢复工具
+
+- `backend/restore-legacy.js` 仅在终端手动运行，不参与启动，也没有公开恢复接口。Atlas 只读快照或私密 EJSON 文件作为来源；不得提交连接信息、用户资料、密码哈希或导出文件。
+- 默认只读预检：`node backend/restore-legacy.js --db /data/rental.sqlite --source-admin-id SOURCE --target-admin-id TARGET --source-item-id OLD_ITEM --target-item-id CURRENT_ITEM`。连接信息通过隐藏输入读取；本地文件可用 `--file PRIVATE_FILE`。
+- 实际合并额外指定 `--apply --expected-sha REVIEWED_SHA256`。必须先审查预检报告；账号映射只允许同名超级管理员，保留当前账号全部字段；编码冲突只允许明确指定的一对物品，其他冲突直接停止。
+- 写入前将数据库及引用图片完整备份到 `/data/recovery-backups/<来源SHA>/`，独立于日常轮换备份。检查备份完整性，并在事务内再次核对当前数据指纹；并发更改、关联错误或数量错误均中止并回滚。
+- 旧用户密码哈希与库存原值保留，旧借用不重复扣库存；历史缺失审批人设为空。原始快照完整保存在私有 SQLite 表 `legacy_restore_runs`，旧验证码不会进入活动认证表。同一来源重复执行不会重复导入，不同快照拒绝覆盖。
+- 工具发布不代表生产恢复完成；实际结果须以终端报告和网站核验为准。
 
 ### 2026-10-23 借用界面优化
 
