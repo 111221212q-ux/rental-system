@@ -2,6 +2,16 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { DatabaseSync, backup } = require('node:sqlite');
+const { imageDirectory, referencedImages, requireImage, imageName } = require('./images');
+
+function removeImageBackup(directory) {
+  // Only remove flat, generated image backup directories; never follow a directory symlink.
+  if (!fs.lstatSync(directory).isDirectory()) throw new Error('图片备份目录无效');
+  const files = fs.readdirSync(directory, { withFileTypes: true });
+  if (files.some(f => !f.isFile() || !imageName.test(f.name))) throw new Error('图片备份目录内容无效');
+  for (const file of files) fs.unlinkSync(path.join(directory, file.name));
+  fs.rmdirSync(directory);
+}
 
 const schema = `
 CREATE TABLE IF NOT EXISTS users (
@@ -116,6 +126,8 @@ class Store {
       const name = `backup-${new Date().toISOString().replace(/[:.]/g,'-')}-${crypto.randomUUID()}.sqlite`;
       const destination = path.join(directory, name);
       const partial = destination + '.partial';
+      const assets = destination + '.images';
+      const partialAssets = assets + '.partial';
       try {
         await backup(this.db, partial);
         fs.chmodSync(partial, 0o600);
@@ -123,11 +135,24 @@ class Store {
         try {
           if (check.prepare('PRAGMA integrity_check').get().integrity_check !== 'ok') throw new Error('备份完整性验证失败');
           if (check.prepare('PRAGMA foreign_key_check').all().length) throw new Error('备份关联数据验证失败');
+          fs.mkdirSync(partialAssets, { mode: 0o700 });
+          for (const image of referencedImages(check)) {
+            fs.copyFileSync(requireImage(imageDirectory(this), image), path.join(partialAssets, image), fs.constants.COPYFILE_EXCL);
+          }
         } finally { check.close(); }
+        fs.renameSync(partialAssets, assets);
         fs.renameSync(partial, destination);
-      } catch (error) { if (fs.existsSync(partial)) fs.unlinkSync(partial); throw error; }
+      } catch (error) {
+        if (fs.existsSync(partial)) fs.unlinkSync(partial);
+        for (const dir of [partialAssets, assets]) if (fs.existsSync(dir)) removeImageBackup(dir);
+        throw error;
+      }
       const names = fs.readdirSync(directory).filter(n => /^backup-\d{4}-\d{2}-\d{2}T[\dTZ-]+-[a-f\d-]{36}\.sqlite$/.test(n)).sort().reverse();
-      for (const old of names.slice(retention)) fs.unlinkSync(path.join(directory, old));
+      for (const old of names.slice(retention)) {
+        fs.unlinkSync(path.join(directory, old));
+        const oldAssets = path.join(directory, old + '.images');
+        if (fs.existsSync(oldAssets)) removeImageBackup(oldAssets);
+      }
       return destination;
     })();
     try { return await this.backupPromise; } finally { this.backupPromise = null; }

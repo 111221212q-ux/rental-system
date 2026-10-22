@@ -525,10 +525,10 @@ tr:hover td{background:linear-gradient(90deg,rgba(99,102,241,.03),transparent)}
           <details class="card" style="margin-bottom:12px;padding:14px 18px;font-size:13px;color:var(--text-muted);line-height:1.8" id="item-guide">
             <summary style="cursor:pointer;font-weight:600;color:var(--text);font-size:14px;user-select:none">操作指南：如何上传图片和文件</summary>
             <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
-              <div style="font-weight:600;color:var(--text);margin-bottom:4px">图片URL</div>
-              ① 打开图床网站（如 <a href="https://imgse.com" target="_blank" style="color:var(--primary)">imgse.com</a> 或 <a href="https://sm.ms" target="_blank" style="color:var(--primary)">sm.ms</a>）上传图片<br>
-              ② 上传后复制<strong>图片直链</strong>（URL 以 .jpg/.png/.webp 结尾为佳）<br>
-              ③ 粘贴到新增/编辑表单的「图片URL」输入框中
+              <div style="font-weight:600;color:var(--text);margin-bottom:4px">物品图片</div>
+              ① 在新增或编辑物品时选择电脑或手机中的照片<br>
+              ② 支持 JPG、PNG、WebP，单张不超过 8 MB、1600万像素，上传后自动压缩<br>
+              ③ 预览确认后保存物品；可替换或移除图片，也可使用已有图片链接
               <div style="font-weight:600;color:var(--text);margin-top:10px;margin-bottom:4px">数据手册URL</div>
               ① 将 PDF/文档上传到网盘（如 百度网盘、阿里云盘、OneDrive）并生成<strong>分享链接</strong><br>
               ② 或将手册上传到 <a href="https://www.ilovepdf.com" target="_blank" style="color:var(--primary)">ilovepdf.com</a> 等在线服务获取链接<br>
@@ -647,7 +647,7 @@ tr:hover td{background:linear-gradient(90deg,rgba(99,102,241,.03),transparent)}
         <div class="form-group"><label class="form-label">价值（元）</label><input class="input" id="new-item-value" type="number" min="0" value="0"></div>
       </div>
       <div class="form-group"><label class="form-label">单人限租数量</label><input class="input" id="new-item-max-qty" type="number" min="1" value="5"></div>
-      <div class="form-group"><label class="form-label">图片URL</label><input class="input" id="new-item-image" placeholder="物品图片链接"></div>
+      <div class="form-group item-image-editor" id="new-item-image-editor"></div>
       <div class="form-group"><label class="form-label">数据手册URL</label><input class="input" id="new-item-datasheet" placeholder="官方手册或说明书链接"></div>
       <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
         <button class="btn btn-outline" onclick="closeAddItemModal()">取消</button>
@@ -674,7 +674,7 @@ tr:hover td{background:linear-gradient(90deg,rgba(99,102,241,.03),transparent)}
         <div class="form-group"><label class="form-label">需要审核</label><select class="input" id="edit-item-approval"><option value="false">否</option><option value="true">是</option></select></div>
         <div class="form-group"><label class="form-label">价值（元）</label><input class="input" id="edit-item-value" type="number" min="0" value="0"></div>
       </div>
-      <div class="form-group"><label class="form-label">图片URL</label><input class="input" id="edit-item-image" placeholder="物品图片链接"></div>
+      <div class="form-group item-image-editor" id="edit-item-image-editor"></div>
       <div class="form-group"><label class="form-label">数据手册URL</label><input class="input" id="edit-item-datasheet" placeholder="官方手册或说明书链接"></div>
       <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
         <button class="btn btn-outline" onclick="closeEditItemModal()">取消</button>
@@ -825,7 +825,7 @@ tr:hover td{background:linear-gradient(90deg,rgba(99,102,241,.03),transparent)}
           <div style="font-weight:600;color:var(--text);margin-bottom:4px">④ 物品管理</div>
           <div>• 查看/新增/编辑/删除物品<br>
           • 编辑时可修改名称、编码、分类、总库存、最长天数、限租数量等<br>
-          • 可设置物品是否需要管理员审批、填写图片URL和数据手册URL<br>
+          • 可设置物品是否需要管理员审批、直接上传物品图片和填写数据手册URL<br>
           • 搜索框可按物品名快速查找</div>
         </div>
         <div style="margin-bottom:12px">
@@ -891,7 +891,7 @@ function beijingDate(d=new Date()){return new Intl.DateTimeFormat('en-CA',{timeZ
 function gt(){return localStorage.getItem(TK)||sessionStorage.getItem(TK)}
 function st(t){const rm=document.getElementById('remember-me'),remember=!!localStorage.getItem(TK)||!!(rm&&rm.checked);localStorage.removeItem(TK);sessionStorage.removeItem(TK);(remember?localStorage:sessionStorage).setItem(TK,t)}
 function esc(s){const d=document.createElement('div');d.textContent=s||'';return d.innerHTML}
-function escUrl(u){return u&&/^https?:\/\//i.test(u)?u:''}
+function escUrl(u){return typeof u==='string'&&!/["'<>\s]/.test(u)&&(/^https?:\/\//i.test(u)||/^\/uploads\/[a-f0-9]{64}\.webp$/.test(u))?esc(u):''}
 function gu(){try{return JSON.parse(localStorage.getItem(UK)||sessionStorage.getItem(UK))}catch(e){return null}}
 function su(u){const remember=!!localStorage.getItem(TK);localStorage.removeItem(UK);sessionStorage.removeItem(UK);(remember?localStorage:sessionStorage).setItem(UK,JSON.stringify(u))}
 function ca(){localStorage.removeItem(TK);localStorage.removeItem(UK);sessionStorage.removeItem(TK);sessionStorage.removeItem(UK)}
@@ -1304,14 +1304,81 @@ async function cleanTestData(){
 }
 
 // Modals
+const itemImageStates={};
+function imageSaveButton(prefix){return document.querySelector('#'+(prefix==='new'?'add':'edit')+'-item-modal .btn-primary')}
+function resetItemImage(prefix,value=''){
+  const old=itemImageStates[prefix];if(old){old.version++;old.controller?.abort();if(old.preview)URL.revokeObjectURL(old.preview)}
+  itemImageStates[prefix]={version:(old?.version||0)+1,busy:false};
+  const host=document.getElementById(prefix+'-item-image-editor');
+  host.innerHTML=`<label class="form-label" for="${prefix}-item-image-file">物品图片</label>
+    <input type="hidden" id="${prefix}-item-image">
+    <div style="border:1px solid var(--border);border-radius:10px;background:var(--bg-muted);padding:12px">
+      <img id="${prefix}-item-image-preview" alt="物品图片预览" class="hidden" style="width:100%;height:156px;object-fit:contain;border-radius:6px;margin-bottom:10px" onerror="this.classList.add('hidden');document.getElementById('${prefix}-item-image-status').textContent='图片无法显示，请重新上传或更换链接'">
+      <input class="input" type="file" id="${prefix}-item-image-file" accept="image/jpeg,image/png,image/webp" onchange="uploadItemImage('${prefix}',this.files[0])" aria-describedby="${prefix}-item-image-hint ${prefix}-item-image-status" style="font-size:13px;max-width:100%">
+      <div id="${prefix}-item-image-hint" style="font-size:12px;color:var(--text-muted);margin-top:8px">JPG / PNG / WebP · 最大 8 MB、1600万像素 · 自动压缩</div>
+      <div id="${prefix}-item-image-status" role="status" aria-live="polite" style="font-size:12px;margin-top:6px;overflow-wrap:anywhere"></div>
+      <button type="button" class="btn btn-outline btn-sm hidden" id="${prefix}-item-image-remove" onclick="removeItemImage('${prefix}')" style="margin-top:8px">移除图片</button>
+      <details style="margin-top:10px;font-size:12px;color:var(--text-muted)"><summary style="cursor:pointer">或使用图片链接</summary><label class="form-label" for="${prefix}-item-image-link" style="margin-top:8px">图片链接</label><input class="input" type="url" id="${prefix}-item-image-link" placeholder="https://…" onchange="setItemImageLink('${prefix}',this.value)"></details>
+    </div>`;
+  document.getElementById(prefix+'-item-image').value=value;
+  document.getElementById(prefix+'-item-image-link').value=value.startsWith('/')?'':value;
+  renderItemImage(prefix,value,value?'当前图片，保存后生效':'尚未选择图片（可选）');
+}
+function renderItemImage(prefix,value,message){
+  const preview=document.getElementById(prefix+'-item-image-preview');
+  if(value){preview.src=value;preview.classList.remove('hidden')}else{preview.removeAttribute('src');preview.classList.add('hidden')}
+  document.getElementById(prefix+'-item-image-status').textContent=message;
+  document.getElementById(prefix+'-item-image-remove').classList.toggle('hidden',!value);
+}
+function cancelItemImage(prefix){
+  const state=itemImageStates[prefix];if(!state)return;
+  state.version++;state.controller?.abort();state.busy=false;
+  if(state.preview){URL.revokeObjectURL(state.preview);state.preview=null}
+  const file=document.getElementById(prefix+'-item-image-file');if(file)file.disabled=false;
+  const link=document.getElementById(prefix+'-item-image-link');if(link)link.disabled=false;
+}
+function removeItemImage(prefix){cancelItemImage(prefix);resetItemImage(prefix);enableBtn(imageSaveButton(prefix))}
+function setItemImageLink(prefix,value){
+  if(itemImageStates[prefix]?.busy)return;
+  value=value.trim();if(value&&!escUrl(value)){document.getElementById(prefix+'-item-image-link').value=document.getElementById(prefix+'-item-image').value;toast('请输入有效的 HTTP/HTTPS 图片链接','error');return}
+  document.getElementById(prefix+'-item-image').value=value;
+  renderItemImage(prefix,value,value?'链接预览，保存后生效':'尚未选择图片（可选）');
+}
+async function uploadItemImage(prefix,file){
+  if(!file)return;
+  const input=document.getElementById(prefix+'-item-image-file');
+  if(!['image/jpeg','image/png','image/webp'].includes(file.type)||file.size>8*1024*1024){input.value='';toast('请选择不超过8 MB的 JPG、PNG 或 WebP 图片','error');return}
+  cancelItemImage(prefix);
+  const state=itemImageStates[prefix],version=state.version;
+  const previous=document.getElementById(prefix+'-item-image').value;
+  state.busy=true;state.controller=new AbortController();const objectURL=URL.createObjectURL(file);state.preview=objectURL;
+  renderItemImage(prefix,objectURL,'正在上传并压缩，请稍候…');
+  input.disabled=true;document.getElementById(prefix+'-item-image-link').disabled=true;imageSaveButton(prefix).disabled=true;
+  try{
+    const form=new FormData();form.append('image',file);
+    const response=await fetch(API_URL+'/uploads/images',{method:'POST',headers:{Authorization:'Bearer '+gt()},body:form,signal:state.controller.signal});
+    const result=await response.json();if(!response.ok)throw new Error(result.error||'图片上传失败');
+    if(state.version!==version)return;
+    document.getElementById(prefix+'-item-image').value=result.url;
+    document.getElementById(prefix+'-item-image-link').value='';
+    renderItemImage(prefix,result.url,'上传成功 · '+Math.max(1,Math.round(result.bytes/1024))+' KB · 保存物品后生效');
+  }catch(error){
+    if(state.version!==version||error.name==='AbortError')return;
+    renderItemImage(prefix,previous,previous?'上传失败，已保留原图片：'+error.message:'上传失败：'+error.message);toast(error.message,'error');
+  }finally{
+    URL.revokeObjectURL(objectURL);if(state.preview===objectURL)state.preview=null;
+    if(state.version===version){state.busy=false;input.disabled=false;input.value='';document.getElementById(prefix+'-item-image-link').disabled=false;enableBtn(imageSaveButton(prefix))}
+  }
+}
 function showAddItemModal(){
-  ['new-item-name','new-item-code','new-item-desc','new-item-image','new-item-datasheet'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});
+  resetItemImage('new');
+  ['new-item-name','new-item-code','new-item-desc','new-item-datasheet'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});
   document.getElementById('new-item-category').value='电子产品';
   document.getElementById('new-item-stock').value='1';document.getElementById('new-item-days').value='7';
   document.getElementById('new-item-max-qty').value='5';document.getElementById('new-item-approval').value='false';document.getElementById('new-item-value').value='0';
   document.getElementById('add-item-modal').classList.remove('hidden');enableBtn(document.querySelector('#add-item-modal .btn-primary'))
 }
-function closeAddItemModal(){document.getElementById('add-item-modal').classList.add('hidden');enableBtn(document.querySelector('#add-item-modal .btn-primary'))}
+function closeAddItemModal(){cancelItemImage('new');document.getElementById('add-item-modal').classList.add('hidden');enableBtn(document.querySelector('#add-item-modal .btn-primary'))}
 function showEditItemModal(id){
   const i=allItems.find(x=>x.id===id);if(!i)return;
   document.getElementById('edit-item-id').value=i.id;
@@ -1324,12 +1391,13 @@ function showEditItemModal(id){
   document.getElementById('edit-item-max-qty').value=i.maxRentalQty||5;
   document.getElementById('edit-item-approval').value=i.requireApproval?'true':'false';
   document.getElementById('edit-item-value').value=i.value||0;
-  document.getElementById('edit-item-image').value=i.image||'';
+  resetItemImage('edit',i.image||'');
   document.getElementById('edit-item-datasheet').value=i.datasheetUrl||'';
   document.getElementById('edit-item-modal').classList.remove('hidden');enableBtn(document.querySelector('#edit-item-modal .btn-primary'))
 }
-function closeEditItemModal(){document.getElementById('edit-item-modal').classList.add('hidden');enableBtn(document.querySelector('#edit-item-modal .btn-primary'))}
+function closeEditItemModal(){cancelItemImage('edit');document.getElementById('edit-item-modal').classList.add('hidden');enableBtn(document.querySelector('#edit-item-modal .btn-primary'))}
 async function handleEditItem(){
+  if(itemImageStates.edit?.busy){toast('请等待图片上传完成','error');return}
   const btn=document.querySelector('#edit-item-modal .btn-primary');
   if(!disableBtn(btn,'保存中...'))return;
   const id=document.getElementById('edit-item-id').value;
@@ -1341,6 +1409,7 @@ async function handleEditItem(){
   }catch(e){enableBtn(btn);toast(e.message,'error')}
 }
 async function handleAddItem(){
+  if(itemImageStates.new?.busy){toast('请等待图片上传完成','error');return}
   const btn=document.querySelector('#add-item-modal .btn-primary');
   if(!disableBtn(btn,'添加中...'))return;
   const n=document.getElementById('new-item-name').value.trim(),c=document.getElementById('new-item-code').value.trim();
@@ -1363,8 +1432,8 @@ function renderDetail(){
   const colors={电子产品:'#3b82f6',办公用品:'#10b981',运动器材:'#f59e0b',生活用品:'#8b5cf6'};
 
   // Image
-  if(i.image&&/^https?:\/\//i.test(i.image)){
-    document.getElementById('detail-image').innerHTML=`<div class="detail-image-wrap"><img src="${i.image}" alt="${esc(i.name)}" onerror="this.parentElement.innerHTML='<div class=\\'no-image\\'>暂无图片</div>'"></div>`;
+  if(escUrl(i.image)){
+    document.getElementById('detail-image').innerHTML=`<div class="detail-image-wrap"><img src="${escUrl(i.image)}" alt="${esc(i.name)}" onerror="this.parentElement.innerHTML='<div class=\\'no-image\\'>暂无图片</div>'"></div>`;
   }else{
     document.getElementById('detail-image').innerHTML=`<div class="detail-image-wrap"><div class="no-image"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:48px;height:48px;opacity:.3;margin-bottom:8px"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div></div>`;
   }

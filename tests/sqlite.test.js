@@ -278,7 +278,9 @@ test('manual backup CLI works outside source directory', async t => {
   const h = await fixture(t);
   const result = spawnSync(process.execPath,[path.resolve(__dirname,'../backend/backup.js')],{ cwd:os.tmpdir(),env:{...process.env,SQLITE_PATH:h.filename,BACKUP_DIR:path.join(h.root,'manual-backups')},encoding:'utf8' });
   assert.equal(result.status,0,result.stderr);
-  assert.equal((await fsp.readdir(path.join(h.root,'manual-backups'))).length,1);
+  const files=await fsp.readdir(path.join(h.root,'manual-backups'));
+  assert.equal(files.filter(n=>n.endsWith('.sqlite')).length,1);
+  assert.equal(files.filter(n=>n.endsWith('.sqlite.images')).length,1);
 });
 
 test('superadmin test-data cleanup restores stock and never removes real students', async t => {

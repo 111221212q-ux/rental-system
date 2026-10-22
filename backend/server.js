@@ -8,6 +8,7 @@ const rateLimit = require('express-rate-limit');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const { Store } = require('./storage');
+const { createImageUpload, imageDirectory, localImageName, requireImage } = require('./images');
 const defaultEmailService = require('./services/sms');
 
 const dayMs = 86400000;
@@ -69,7 +70,7 @@ function createApp({ store, jwtSecret = process.env.JWT_SECRET, emailService = d
   app.use(express.json({ limit: '128kb' }));
   app.use((req, res, next) => {
     req.body ||= {};
-    res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https: http:; connect-src 'self'; frame-src 'none'; object-src 'none'");
+    res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https: http:; connect-src 'self'; frame-src 'none'; object-src 'none'");
     res.setHeader('X-Content-Type-Options', 'nosniff'); res.setHeader('X-Frame-Options', 'DENY');
     next();
   });
@@ -92,6 +93,11 @@ function createApp({ store, jwtSecret = process.env.JWT_SECRET, emailService = d
   }
   const admin = (req, _, next) => { if (!['admin','superadmin'].includes(req.user.role)) fail(403, '需要管理员权限'); next(); };
   const superadmin = (req, _, next) => { if (req.user.role !== 'superadmin') fail(403, '需要超级管理员权限'); next(); };
+  app.post('/api/uploads/images', auth, admin, createImageUpload(store));
+  app.use('/uploads', (req, res, next) => {
+    if (!/^\/[a-f0-9]{64}\.webp$/.test(req.path)) return res.sendStatus(404);
+    next();
+  }, express.static(imageDirectory(store), { dotfiles: 'deny', index: false, fallthrough: false, maxAge: '1y', immutable: true }));
   const find = (table, id, message) => { const row = store.get(table, id); if (!row) fail(404, message); return row; };
   const rentalDTO = row => {
     const user = store.get('users', row.userId);
@@ -205,8 +211,9 @@ function createApp({ store, jwtSecret = process.env.JWT_SECRET, emailService = d
     if (!row.name || !row.code) fail(400, '请填写物品名称和编码');
     row.code = row.code.toUpperCase();
     for (const key of ['image','datasheetUrl']) if (row[key]) {
+      if (key === 'image' && localImageName(row.image)) { requireImage(imageDirectory(store), localImageName(row.image)); continue; }
       try { const u = new URL(row[key]); if (!['http:','https:'].includes(u.protocol) || /["'<>\s]/.test(row[key])) throw new Error(); }
-      catch { fail(400, '图片或手册链接须为有效的 HTTP/HTTPS 地址'); }
+      catch { fail(400, '请上传有效图片，或填写有效的 HTTP/HTTPS 链接'); }
     }
     if (body.totalStock !== undefined || !existing) {
       const total = integer(body.totalStock, '总库存', 0);
@@ -426,7 +433,7 @@ function createApp({ store, jwtSecret = process.env.JWT_SECRET, emailService = d
     if (/UNIQUE constraint failed: items\.code/.test(message)) return res.status(400).json({ error: '物品编码已存在' });
     const status = error.status || (error.type === 'entity.parse.failed' ? 400 : 500);
     if (status >= 500) console.error('API error:', error.code || error.name);
-    res.status(status).json({ error: status >= 500 ? '服务暂时不可用，请稍后重试' : message });
+    res.status(status).json({ error: status === 507 ? message : status >= 500 ? '服务暂时不可用，请稍后重试' : req.path.startsWith('/uploads/') ? '资源不存在' : message });
   });
   return app;
 }

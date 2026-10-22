@@ -5,6 +5,7 @@ data.json
 .git/
 .plan/
 backups/
+**/uploads/
 **/data/
 **/*.sqlite*
 **/initial-admin.txt

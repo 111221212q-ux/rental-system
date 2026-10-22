@@ -26,6 +26,7 @@ yarn-error.log*
 Thumbs.db
 .plan/
 backups/
+uploads/
 backend/data/
 *.sqlite
 *.sqlite-journal
