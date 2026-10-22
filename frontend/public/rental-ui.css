@@ -1,0 +1,51 @@
+/* Item browsing and booking: shared across desktop and mobile. */
+:root{--text-muted:#64748b}
+.item-card{display:flex;flex-direction:column;min-width:0;padding:18px}
+.item-card .item-desc{min-height:39px}
+.item-card .item-category-tag{align-self:flex-start}
+.item-card .item-meta{flex-wrap:wrap;gap:6px 12px}
+.item-card .item-actions{margin-top:auto;padding-top:14px}
+.item-card .item-actions .btn{width:100%;justify-content:center;min-height:44px}
+.item-media{position:relative;aspect-ratio:4/3;overflow:hidden;background:#f1f5f9;border-radius:10px;margin-bottom:16px;flex:none}
+.item-media img{display:block;width:100%;height:100%;object-fit:contain}
+.item-media img[hidden]{display:none}
+.media-placeholder{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;background:linear-gradient(145deg,#f1f5f9,#eef2ff);color:#64748b;font-size:13px}
+.media-placeholder svg{width:52px;height:52px;color:#818cf8;margin-bottom:4px}
+.media-placeholder strong{font-size:14px;font-weight:500;color:#475569}
+.media-placeholder span{font-size:12px}
+.item-media-detail{margin-bottom:0}
+.detail-hero{grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:24px}
+.detail-hero>div{min-width:0}
+.detail-hero #detail-image{max-width:none}
+.rental-schedule-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:0 12px}
+.booking-help,.availability-help{font-size:12px;color:#64748b;line-height:1.7;margin-bottom:12px}
+.booking-form{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:24px}
+.booking-time-column,.booking-details-column{min-width:0}
+.booking-details-column{border-left:1px solid #e2e8f0;padding-left:24px}
+.equipment-availability{background:#f8fafc;padding:14px;border:1px solid #e2e8f0;border-radius:10px;margin-bottom:16px}
+.availability-header{display:flex;align-items:baseline;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:13px;margin-bottom:10px}
+.availability-header span{font-size:12px;color:#64748b}
+.availability-legend{display:flex;gap:8px 12px;flex-wrap:wrap;font-size:11px;color:#475569;margin-bottom:10px}
+.availability-legend>span::before{content:'';display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:4px}
+.legend-free::before{background:#34d399}.legend-partial::before{background:#fbbf24}.legend-full::before{background:#f87171}.legend-past::before{background:#cbd5e1}
+.availability-track{display:flex;height:18px;border-radius:5px;overflow:hidden;background:#e2e8f0}
+.availability-track>span{min-width:0;border-right:1px solid #fff}
+.segment-free{background:#d1fae5;color:#065f46}.segment-partial{background:#fef3c7;color:#92400e}.segment-full{background:#fee2e2;color:#991b1b}.segment-past{background:#e2e8f0;color:#64748b}
+.availability-axis{display:flex;justify-content:space-between;font-size:10px;color:#64748b;margin-top:4px;margin-bottom:12px}
+.availability-slots{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;max-height:228px;overflow-y:auto}
+.availability-slot{display:flex;flex-direction:column;align-items:flex-start;gap:3px;border:1px solid transparent;border-radius:8px;padding:10px 12px;min-height:56px;font:inherit;text-align:left;cursor:pointer}
+.availability-slot strong{font-size:12px;font-variant-numeric:tabular-nums}.availability-slot span{font-size:11px}
+.availability-slot:hover:enabled{border-color:#6366f1;box-shadow:0 0 0 1px #6366f1}
+.availability-slot:disabled{cursor:not-allowed;opacity:.8}
+.booking-selection{font-size:13px;padding:10px 12px;border:1px solid #e2e8f0;border-radius:8px;background:#fff;margin-bottom:16px;line-height:1.7;color:#475569}
+.booking-selection[data-valid="true"]{border-color:#a7f3d0;background:#ecfdf5;color:#065f46}
+.booking-selection[data-valid="false"]{color:#92400e;background:#fffbeb;border-color:#fde68a}
+.booking-notice{font-size:13px;color:#64748b;line-height:1.7}
+.booking-error{font-size:13px;color:#b91c1c;margin:6px 0 12px;line-height:1.6}
+.input[aria-invalid="true"]{border-color:#dc2626;background:#fffafa}
+.booking-submit{display:flex;justify-content:flex-end;margin-top:18px;padding-top:16px;border-top:1px solid #e2e8f0}
+.booking-submit .btn{min-height:46px;justify-content:center;width:100%}
+.booking-retry{margin-top:8px;min-height:44px}
+.availability-slot:focus-visible,.btn:focus-visible{outline:3px solid #6366f1;outline-offset:3px}
+@media(max-width:768px){.detail-hero{grid-template-columns:minmax(0,1fr)}.detail-hero #detail-image{max-width:400px;width:100%;margin-inline:auto}.item-card{padding:16px}.booking-form{grid-template-columns:minmax(0,1fr);gap:8px}.booking-details-column{border-left:0;padding-left:0}.rental-schedule-grid{grid-template-columns:1fr 1fr}.rental-schedule-grid>.booking-date{grid-column:1/-1}.equipment-availability{padding:12px}.availability-slots{grid-template-columns:1fr 1fr}}
+@media(prefers-reduced-motion:reduce){.card,.btn,.modal,.toast,.sidebar{animation:none!important;transition:none!important;transform:none!important}}
