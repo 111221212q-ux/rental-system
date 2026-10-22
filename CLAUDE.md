@@ -1,164 +1,33 @@
 # CLAUDE.md — 校园物品租借系统
 
-## 项目概览
+接手先读 HANDOFF.md。用户于2026-10-22选择 SQLite、新数据初始化，不再迁移 Atlas。
 
-一个轻量级的校园物品租借管理平台。单页应用（原生 HTML/CSS/JS）+ Node.js/Express 5 后端 + MongoDB Atlas 数据库。
+## 当前架构
 
-- **生产地址**：https://rental.gggffxu.xyz
-- **GitHub**：https://github.com/111221212q-ux/rental-system (public)
-- **部署**：Railway 自动部署，push master 即上线
+- Node24 + Express5；入口 backend/server.js。
+- Node内置 node:sqlite；结构化数据、约束、外键、事务在 backend/storage.js。
+- 前端全部在 frontend/public/app.html；保持 CRLF。
+- 邮件 backend/services/sms.js；先加载环境变量再加载邮件模块。
+- Sealos 北京区域，应用 rental，固定一个实例，持久卷挂载 /data。
+- SQLite /data/rental.sqlite，备份 /data/backups；不再使用 MongoDB/JSON 回退。
 
-## 技术栈
+## 规则
 
-| 层 | 技术 | 版本 |
-|---|---|---|
-| 前端 | 原生 HTML/CSS/JS (SPA) | — |
-| 后端 | Express | 5.x |
-| 数据库 | MongoDB via Mongoose | 9.x |
-| 认证 | JWT + bcryptjs | — |
-| 邮件 | Resend HTTP API | — |
-| 部署 | Railway | — |
+- 前端继续使用原 API 字段和状态：pending → approved → active → returned；pending 可 rejected；approved 过期 cancelled。
+- 库存只在线下领取时扣减，审批不预占；所有领取/归还操作同步事务，不能跨异步等待。
+- 日期按北京时间；截止日当天23:59:59.999有效。
+- 新库仅创建超级管理员，无演示物品/用户/租借；不自动导入旧库。
+- 密码bcrypt，JWT版本在改密后撤销；用户输出排除密码和内部版本。
+- 评论内容和所有用户输入进入HTML时必须转义；数据库访问必须参数绑定。
+- backup API生成一致快照，完整性校验后发布，保留7份。不得直接复制在线主库作为备份。
+- SQLite、备份、初始密码、.env均不进Git或镜像。仓库公开。
+- 密钥保存在本地忽略文件/Sealos环境变量，禁止写进交接文档或提交。
 
-## 目录结构
+## 验证
 
-```
-rental-system/
-├── backend/
-│   ├── server.js          # 主入口，所有路由都在这里（单文件）
-│   ├── models/            # Mongoose 模型
-│   │   ├── User.js
-│   │   ├── Item.js
-│   │   ├── Rental.js
-│   │   └── Comment.js
-│   ├── services/
-│   │   └── sms.js         # 邮件发送（Resend API）
-│   ├── .env               # 本地环境变量（git ignored）
-│   ├── .env.example       # 环境变量模板（已脱敏）
-│   └── data.json          # JSON 回退存储（git ignored）
-├── frontend/
-│   └── public/
-│       ├── app.html       # 全部前端代码（HTML+CSS+JS）
-│       └── favicon.svg
-├── docs/
-│   └── devlog.md          # 开发日志
-├── README.md
-├── CLAUDE.md              # 本文件
-└── package.json           # 依赖 + 启动脚本
-```
+npm test；Node语法检查；前端脚本语法检查；浏览器正常/错误路径。
+部署后检查 /api/health 的 storage=sqlite 与 backup.lastSuccess，并实测重启保留数据。
 
-## 架构要点
+## 历史
 
-### 双模式存储
-- **MongoDB 模式**（生产环境）：通过 `MONGODB_URI` 环境变量连接
-- **JSON 文件模式**（本地回退）：不配置 MONGODB_URI 时自动使用 `backend/data.json`
-- 所有路由都有 `if (useMongo) { ... } else { ... }` 双分支
-
-### 用户角色
-```
-user → 普通用户（浏览、租借、看自己记录）
-admin → 管理员（审批、领取、归还、管理物品）
-superadmin → 超级管理员（用户管理、升降角色、测试数据生成）
-```
-
-### API 权限中间件
-```js
-auth        → 需要登录
-admin       → 需要 admin 或 superadmin
-superadmin  → 仅 superadmin
-```
-
-### 租借状态流转
-```
-pending → approved → active → returned
-       → rejected
-                → cancelled（自动：approved 过期未领取）
-```
-
-### 前端路由
-- `#仪表板` `#物品列表` `#我的租借` `#个人设置` `#管理后台`
-- 管理后台 6 个 Tab：待审核 / 待领取 / 租借中 / 物品管理 / 用户管理 / 数据统计
-- 每个 Tab 有独立搜索框，实时筛选
-
-### 关键全局变量（前端）
-```js
-currentUser   // 当前用户对象
-allItems      // 所有物品
-allRentals    // 所有租借记录（admin 可见）
-myRentals     // 当前用户的租借
-allUsers      // 所有用户（admin 可见）
-adminContact  // 管理员联系方式
-```
-
-## 重要注意事项
-
-### 文件编码
-- `app.html` 使用 CRLF (`\r\n`) 换行，编辑时必须保持一致
-- 使用 node 脚本批量修改比 Edit 工具更可靠
-
-### MongoDB
-- **不要使用 `mongoose.set('sanitizeFilter', true)`** — 与 Mongoose 9 不兼容
-- 所有 `findById` 前应调用 `isValidObjectId()` 校验
-
-### 前端渲染
-- 用户可控数据必须用 `esc()` 函数转义防 XSS
-- 图片 URL 用 `escUrl()` 校验
-- 所有管理按钮加了 `_busy` 防重复提交
-
-### 安全
-- `.env` 不在 git 中，敏感信息通过环境变量注入
-- JWT_SECRET 在 Railway 环境变量中
-- GitHub 仓库是 public 的，不要把密码/密钥写在代码里
-
-## 环境变量
-
-```
-PORT=5000
-MONGODB_URI=mongodb+srv://...
-JWT_SECRET=...
-RESEND_API_KEY=...
-```
-
-## 常用命令
-
-```bash
-npm start          # 启动服务 (localhost:5000)
-node server.js     # 同上
-
-# Git（需要 VPN/代理）
-git pull
-git push
-
-# Railway 触发布署（需 token）
-curl -x http://127.0.0.1:7892 \
-  -H "Authorization: Bearer RAILWAY_TOKEN" \
-  -H "Content-Type: application/json" \
-  -X POST https://backboard.railway.app/graphql/v2 \
-  -d '{"query":"mutation { serviceInstanceRedeploy(environmentId: \"ENV_ID\", serviceId: \"SVC_ID\") }"}'
-
-# 语法检查
-node -e "const s=require('fs').readFileSync('frontend/public/app.html','utf8'); \
-  const m=s.match(/<script>([\s\S]*?)<\/script>/); new Function(m[1]); console.log('OK')"
-```
-
-## 当前状态
-
-> 📌 **接手项目请先读 [`HANDOFF.md`](HANDOFF.md)** — 里面有部署现状、阻塞问题和待办。
-
-- **主站已迁到 Sealos**（国内）：https://nbbhlsyclkdc.sealosbja.site
-- ⚠️ **Sealos 连不上 MongoDB Atlas**（国内 DNS 解析不了 SRV 记录），当前跑在 JSON 回退模式，页面是假数据
-- ✅ 真实数据完好，都在 MongoDB Atlas 里
-- 🔧 正在执行「Sealos 自建 MongoDB + 数据迁移」方案，脚本见 `migrate-db.js`
-- Railway 已废弃（试用到期）
-- `sa_882f4ca6` 是超级管理员（密码见记忆文件 `rental-system-secrets.md`，不在此文档中）
-- 仓库是 **public**，禁止把密钥写进任何提交的文件
-
-## 上次开发内容
-
-- 学号可修改（13位数字校验 + 查重）✅
-- 管理后台 5 个 Tab 搜索功能 ✅
-- 使用指南双标签页（用户/管理员），管理员指南仅 admin 可见 ✅
-- 待领取过期自动取消 ✅
-- 个人设置新增修改密码 ✅
-- Dockerfile + GitHub Actions 自动构建镜像 ✅
-- 安全修复：移除 git 历史中的密码、README 脱敏 ✅
-- 仓库已开源 ✅
+backend/models、Mongo配置、迁移工具、React/Vite残留不参与当前网站启动。Railway不再使用。

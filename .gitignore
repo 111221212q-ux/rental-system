@@ -24,3 +24,11 @@ yarn-error.log*
 
 # OS
 Thumbs.db
+.plan/
+backups/
+backend/data/
+*.sqlite
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm
+initial-admin.txt

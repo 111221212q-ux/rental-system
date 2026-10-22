@@ -3,3 +3,11 @@ node_modules/
 data.json
 *.log
 .git/
+.plan/
+backups/
+**/data/
+**/*.sqlite*
+**/initial-admin.txt
+**/.env
+**/.env.*
+**/data.json

@@ -25,10 +25,10 @@
 |---|---|
 | 前端 | 原生 HTML/CSS/JS（单页应用） |
 | 后端 | Node.js + Express 5 |
-| 数据库 | MongoDB Atlas（Mongoose 9）+ JSON 文件回退 |
+| 数据库 | SQLite（Node 内置 node:sqlite） |
 | 认证 | JWT + bcryptjs |
-| 部署 | Railway |
-| 邮件 | Resend API |
+| 部署 | Sealos，北京区域，单实例 + 持久卷 |
+| 邮件 | Resend API / SMTP |
 
 ## 快速开始
 
@@ -58,7 +58,7 @@ MONGODB_URI=mongodb+srv://user:password@cluster.mongodb.net/rental-system
 JWT_SECRET=your-random-secret-here
 ```
 
-> 不配置 `MONGODB_URI` 会自动使用 JSON 文件存储。
+> 使用全新的 SQLite 数据，不自动导入旧 JSON 或 MongoDB。Sealos 必须挂载持久卷 `/data`，设置 `SQLITE_PATH=/data/rental.sqlite`。
 
 ### 启动
 
@@ -68,7 +68,7 @@ npm start
 
 访问 `http://localhost:5000`
 
-> ⚠️ **安全提醒**：首次启动会自动创建演示学生账号（密码均为 `123456`）和一个随机超级管理员账号（密码见启动日志），**切勿使用弱 JWT_SECRET**。
+> 首次只创建超级管理员，不创建演示数据。设置 `INITIAL_ADMIN_PASSWORD`，或从数据库同目录的 `initial-admin.txt` 获取生成的随机密码；密码不会出现在日志中。`JWT_SECRET` 至少24字符。
 
 ## 项目结构
 
@@ -76,7 +76,8 @@ npm start
 rental-system/
 ├── backend/
 │   ├── server.js          # Express 主入口
-│   ├── models/            # Mongoose 模型
+│   ├── storage.js         # SQLite 表结构、事务和备份
+│   ├── backup.js          # 手动备份入口
 │   ├── services/          # 邮件服务
 │   └── .env.example       # 环境变量模板
 ├── frontend/
@@ -108,15 +109,15 @@ rental-system/
 | `PUT /api/admin/users/:id/role` | 超级管理员 | 修改角色 |
 | `PUT /api/admin/users/:id/status` | 超级管理员 | 启用/禁用 |
 
-## 部署
+## 部署与备份
 
-项目已配置 Railway 自动部署，推送 `master` 分支即可：
+GitHub Actions 在测试通过后构建镜像，Sealos 应用挂载 `/data` 持久卷并固定1个实例。完整步骤见 [HANDOFF.md](HANDOFF.md)。
 
-```bash
-git push origin master
-```
+启动时和每24小时自动备份，保留7份；也可执行 `npm run backup`。数据与备份不进镜像或仓库。
 
-环境变量在 Railway Dashboard 中配置（参见 `backend/.env.example`）。
+## 验证
+
+执行 `npm test`，测试使用临时数据库，不访问生产。线上健康接口 `/api/health` 应返回 `storage: "sqlite"`。
 
 ## 开源协议
 

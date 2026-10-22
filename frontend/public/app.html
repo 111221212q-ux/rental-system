@@ -887,12 +887,13 @@ Breakout Game Easter Egg ──────────────────�
 const API_URL = '/api';
 let currentUser = null, allItems = [], allRentals = [], myRentals = [], allUsers = [], rentalItemId = null, adminTab = 'approvals', adminContact = null;
 const TK = 'rental_token', UK = 'rental_user';
+function beijingDate(d=new Date()){return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit'}).format(d)}
 function gt(){return localStorage.getItem(TK)||sessionStorage.getItem(TK)}
-function st(t){const rm=document.getElementById('remember-me');if(rm&&rm.checked){localStorage.setItem(TK,t)}else{sessionStorage.setItem(TK,t)}}
+function st(t){const rm=document.getElementById('remember-me'),remember=!!localStorage.getItem(TK)||!!(rm&&rm.checked);localStorage.removeItem(TK);sessionStorage.removeItem(TK);(remember?localStorage:sessionStorage).setItem(TK,t)}
 function esc(s){const d=document.createElement('div');d.textContent=s||'';return d.innerHTML}
 function escUrl(u){return u&&/^https?:\/\//i.test(u)?u:''}
 function gu(){try{return JSON.parse(localStorage.getItem(UK)||sessionStorage.getItem(UK))}catch(e){return null}}
-function su(u){const rm=document.getElementById('remember-me');if(rm&&rm.checked){localStorage.setItem(UK,JSON.stringify(u))}else{sessionStorage.setItem(UK,JSON.stringify(u))}}
+function su(u){const remember=!!localStorage.getItem(TK);localStorage.removeItem(UK);sessionStorage.removeItem(UK);(remember?localStorage:sessionStorage).setItem(UK,JSON.stringify(u))}
 function ca(){localStorage.removeItem(TK);localStorage.removeItem(UK);sessionStorage.removeItem(TK);sessionStorage.removeItem(UK)}
 function disableBtn(btn,t){if(!btn||btn.disabled)return false;btn._txt=btn.textContent;btn.disabled=true;btn.textContent=t||'处理中...';return true}
 function enableBtn(btn){if(!btn)return;btn.disabled=false;btn.textContent=btn._txt||btn.textContent}
@@ -941,7 +942,7 @@ async function handleRegister(){
   const e=document.getElementById('reg-email').value.trim(),n=document.getElementById('reg-nickname').value.trim(),w=document.getElementById('reg-wechat').value.trim();
   const vc=document.getElementById('reg-vcode').value.trim();
   if(!u||p.length<6){enableBtn(btn);errEl.innerHTML='⚠️ 学号不能为空，密码至少6位';errEl.classList.remove('hidden');return}
-  if(!e){enableBtn(btn);errEl.innerHTML='⚠️ 邮箱为必填项';errEl.classList.remove('hidden');return}if(!/^[^s@]+@[^s@]+.[^s@]+$/.test(e)){enableBtn(btn);errEl.innerHTML='⚠️ 邮箱格式不正确';errEl.classList.remove('hidden');return}
+  if(!e){enableBtn(btn);errEl.innerHTML='⚠️ 邮箱为必填项';errEl.classList.remove('hidden');return}if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)){enableBtn(btn);errEl.innerHTML='⚠️ 邮箱格式不正确';errEl.classList.remove('hidden');return}
   try{
     const body={username:u,password:p,email:e,nickname:n||undefined,wechat:w};
     if(vc) body.verificationCode=vc;
@@ -1335,7 +1336,7 @@ async function handleEditItem(){
   const n=document.getElementById('edit-item-name').value.trim(),c=document.getElementById('edit-item-code').value.trim();
   if(!n||!c){enableBtn(btn);toast('请填写名称和编码','error');return}
   try{
-    await api('PUT','/items/'+id,{name:n,code:c,category:document.getElementById('edit-item-category').value,description:document.getElementById('edit-item-desc').value.trim(),totalStock:parseInt(document.getElementById('edit-item-stock').value)||1,maxRentalDays:parseInt(document.getElementById('edit-item-days').value)||7,maxRentalQty:parseInt(document.getElementById('edit-item-max-qty').value)||5,requireApproval:document.getElementById('edit-item-approval').value==='true',value:parseInt(document.getElementById('edit-item-value').value)||0,image:document.getElementById('edit-item-image').value.trim(),datasheetUrl:document.getElementById('edit-item-datasheet').value.trim()});
+    await api('PUT','/items/'+id,{name:n,code:c,category:document.getElementById('edit-item-category').value,description:document.getElementById('edit-item-desc').value.trim(),totalStock:parseInt(document.getElementById('edit-item-stock').value),maxRentalDays:parseInt(document.getElementById('edit-item-days').value)||7,maxRentalQty:parseInt(document.getElementById('edit-item-max-qty').value)||5,requireApproval:document.getElementById('edit-item-approval').value==='true',value:parseInt(document.getElementById('edit-item-value').value)||0,image:document.getElementById('edit-item-image').value.trim(),datasheetUrl:document.getElementById('edit-item-datasheet').value.trim()});
     toast('修改成功');closeEditItemModal();allItems=await api('GET','/items');renderItems();renderDashboard();if(adminTab==='items')renderAdminItems()
   }catch(e){enableBtn(btn);toast(e.message,'error')}
 }
@@ -1345,7 +1346,7 @@ async function handleAddItem(){
   const n=document.getElementById('new-item-name').value.trim(),c=document.getElementById('new-item-code').value.trim();
   if(!n||!c){enableBtn(btn);toast('请填写名称和编码','error');return}
   try{
-    await api('POST','/items',{name:n,code:c,category:document.getElementById('new-item-category').value,description:document.getElementById('new-item-desc').value.trim(),totalStock:parseInt(document.getElementById('new-item-stock').value)||1,maxRentalDays:parseInt(document.getElementById('new-item-days').value)||7,maxRentalQty:parseInt(document.getElementById('new-item-max-qty').value)||5,requireApproval:document.getElementById('new-item-approval').value==='true',value:parseInt(document.getElementById('new-item-value').value)||0,image:document.getElementById('new-item-image').value.trim(),datasheetUrl:document.getElementById('new-item-datasheet').value.trim()});
+    await api('POST','/items',{name:n,code:c,category:document.getElementById('new-item-category').value,description:document.getElementById('new-item-desc').value.trim(),totalStock:parseInt(document.getElementById('new-item-stock').value),maxRentalDays:parseInt(document.getElementById('new-item-days').value)||7,maxRentalQty:parseInt(document.getElementById('new-item-max-qty').value)||5,requireApproval:document.getElementById('new-item-approval').value==='true',value:parseInt(document.getElementById('new-item-value').value)||0,image:document.getElementById('new-item-image').value.trim(),datasheetUrl:document.getElementById('new-item-datasheet').value.trim()});
     toast('添加成功');closeAddItemModal();allItems=await api('GET','/items');renderItems();renderDashboard();if(adminTab==='items')renderAdminItems()
   }catch(e){enableBtn(btn);toast(e.message,'error')}
 }
@@ -1411,9 +1412,9 @@ function renderDetail(){
         </label>
       </div>
     `;
-    const today=new Date().toISOString().slice(0,10);
+    const today=beijingDate();
     document.getElementById('detail-rental-start').setAttribute('min',today);document.getElementById('detail-rental-end').setAttribute('min',today);
-    document.getElementById('detail-rental-start').valueAsDate=new Date();
+    document.getElementById('detail-rental-start').value=today;
     document.getElementById('detail-rental-end').value='';
   }else{
     rentalCard.classList.remove('hidden');
@@ -1430,7 +1431,7 @@ async function handleDetailRental(){
   if(!disableBtn(btn,'提交中...'))return;
   const s=document.getElementById('detail-rental-start').value,e=document.getElementById('detail-rental-end').value;
   const q=parseInt(document.getElementById('detail-rental-qty').value),r=document.getElementById('detail-rental-reason').value.trim();
-  const today=new Date();today.setHours(0,0,0,0);const todayStr=today.toISOString().slice(0,10);
+  const todayStr=beijingDate();
   if(!s||!e){enableBtn(btn);toast('请选择日期','error');return}if(!r){enableBtn(btn);toast('请填写用途','error');return}if(new Date(e)<=new Date(s)){enableBtn(btn);toast('结束日须晚于开始日','error');return}if(s<todayStr){enableBtn(btn);toast('开始时间不能早于今天','error');return}if(!document.getElementById('detail-rental-agree-compensation').checked){enableBtn(btn);toast('请阅读并同意赔偿条款','error');return}
   try{
     await api('POST','/rentals',{itemId:detailItemId,quantity:q,startDate:s,endDate:e,reason:r});
@@ -1487,9 +1488,9 @@ async function pinComment(id){
 function showRentalModal(id){
   rentalItemId=id;const i=allItems.find(x=>x.id===id);if(!i)return;
   document.getElementById('rental-item-info').innerHTML=`<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:var(--text-muted)">物品</span><span><strong>${esc(i.name)}</strong> (${esc(i.code)})</span></div><div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:var(--text-muted)">可用库存</span><span>${i.availableStock}</span></div><div style="display:flex;justify-content:space-between"><span style="color:var(--text-muted)">最长租期</span><span>${i.maxRentalDays}天</span></div>`;
-  const today=new Date().toISOString().slice(0,10);
+  const today=beijingDate();
   document.getElementById('rental-start').setAttribute('min',today);document.getElementById('rental-end').setAttribute('min',today);
-  document.getElementById('rental-start').valueAsDate=new Date();document.getElementById('rental-end').value='';
+  document.getElementById('rental-start').value=today;document.getElementById('rental-end').value='';
   document.getElementById('rental-qty').value='1';document.getElementById('rental-reason').value='';
   document.getElementById('rental-modal').classList.remove('hidden');enableBtn(document.querySelector('#rental-modal .btn-primary'))
 }
@@ -1498,8 +1499,8 @@ async function handleApplyRental(){
   const btn=document.querySelector('#rental-modal .btn-primary');
   if(!disableBtn(btn,'提交中...'))return;
   const s=document.getElementById('rental-start').value,e=document.getElementById('rental-end').value,q=parseInt(document.getElementById('rental-qty').value),r=document.getElementById('rental-reason').value.trim();if(!document.getElementById('rental-agree-compensation').checked){enableBtn(btn);toast('请阅读并同意赔偿条款','error');return}
-  const today=new Date();today.setHours(0,0,0,0);
-  if(!s||!e){enableBtn(btn);toast('请选择日期','error');return}if(!r){enableBtn(btn);toast('请填写用途','error');return}if(new Date(e)<=new Date(s)){enableBtn(btn);toast('结束日须晚于开始日','error');return}if(new Date(s)<today){enableBtn(btn);toast('开始时间不能早于今天','error');return}
+  const today=beijingDate();
+  if(!s||!e){enableBtn(btn);toast('请选择日期','error');return}if(!r){enableBtn(btn);toast('请填写用途','error');return}if(new Date(e)<=new Date(s)){enableBtn(btn);toast('结束日须晚于开始日','error');return}if(s<today){enableBtn(btn);toast('开始时间不能早于今天','error');return}
   try{
     await api('POST','/rentals',{itemId:rentalItemId,quantity:q,startDate:s,endDate:e,reason:r});
     toast('申请已提交');closeRentalModal();myRentals=await api('GET','/rentals/my');allItems=await api('GET','/items');renderMyRentals();renderDashboard()
@@ -1555,7 +1556,7 @@ async function changePassword(){
   if(!cur||!np){toast('请填写完整','error');return}
   if(np.length<6){toast('新密码至少6位','error');return}
   if(np!==confirm){toast('两次密码不一致','error');return}
-  try{const r=await api('PUT','/auth/password',{currentPassword:cur,newPassword:np});toast(r.message||'密码已修改')}catch(e){toast(e.message,'error')}
+  try{const r=await api('PUT','/auth/password',{currentPassword:cur,newPassword:np});if(r.token)st(r.token);toast(r.message||'密码已修改')}catch(e){toast(e.message,'error')}
 }
 async function sendProfileVerification(){
   const email=document.getElementById('prof-email').value.trim();
@@ -1663,7 +1664,7 @@ function switchHelpTab(t){
 
 async function init(){
   const u=gu(),t=gt();
-  if(u&&t){currentUser=u;enterMain();loadContactInfo()}
+  if(u&&t){try{const d=await api('GET','/auth/me');currentUser=d.user;su(d.user);await enterMain();loadContactInfo()}catch(e){ca();handleLogout()}}
 }
 
 // ── Breakout Game 🎮 ────────────────────────────────────────
