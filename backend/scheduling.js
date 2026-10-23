@@ -34,4 +34,32 @@ function ensureCapacity(store, item, candidate, excludeId, now = Date.now()) {
   if (peakUsage(reservations) > equipmentCapacity(store, item)) fail(409, '该时段设备已被预约，或设备数量不足，请选择其他时段');
 }
 
-module.exports = { categories, isEquipment, openStatuses, slotStart, slotEnd, slotFields, openReservations, equipmentCapacity, peakUsage, ensureCapacity };
+// Run inside the caller's transaction. Release ended uses before starting adjacent slots.
+function advanceReservations(store, now = Date.now()) {
+  const fixed = store.all('rentals').filter(r => r.bookingMode === 'timeslot' && openStatuses.has(r.status));
+  const setAvailable = (item, availableStock) => store.update('items', item.id, { availableStock, status: availableStock === 0 ? 'unavailable' : availableStock <= item.totalStock * 0.2 ? 'low_stock' : 'available' });
+  for (const r of fixed.filter(r => r.status === 'active' && slotEnd(r) <= now)) {
+    const item = store.get('items', r.itemId);
+    if (!item || item.availableStock + r.quantity > item.totalStock) fail(409, '设备库存记录不一致，请核对库存');
+    setAvailable(item, item.availableStock + r.quantity);
+    store.update('rentals', r.id, { status: 'returned', actualReturnDate: new Date(slotEnd(r)).toISOString() });
+  }
+  for (const r of fixed.filter(r => r.status === 'pending' && slotEnd(r) <= now)) store.update('rentals', r.id, { status: 'cancelled' });
+  for (const r of fixed.filter(r => r.status === 'approved').sort((a,b) => slotStart(a) - slotStart(b) || a.id.localeCompare(b.id))) {
+    if (slotStart(r) > now) continue;
+    const pickedAt = new Date(Math.max(slotStart(r), r.approvedAt ? Date.parse(r.approvedAt) : slotStart(r))).toISOString();
+    if (slotEnd(r) <= now) {
+      // The server may have been offline for the whole slot: retain usage history without changing current stock.
+      store.update('rentals', r.id, { status: 'returned', pickedAt, actualReturnDate: new Date(slotEnd(r)).toISOString() });
+    } else {
+      const item = store.get('items', r.itemId);
+      // Never invent inventory if an administrator has removed units from service.
+      if (!item || item.availableStock < r.quantity) continue;
+      setAvailable(item, item.availableStock - r.quantity);
+      store.update('rentals', r.id, { status: 'active', pickedAt });
+    }
+    store.update('users', r.userId, { firstRental: false });
+  }
+}
+
+module.exports = { categories, isEquipment, openStatuses, slotStart, slotEnd, slotFields, openReservations, equipmentCapacity, peakUsage, ensureCapacity, advanceReservations };

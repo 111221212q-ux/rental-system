@@ -9,7 +9,7 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const { Store } = require('./storage');
 const { createImageUpload, imageDirectory, localImageName, requireImage } = require('./images');
-const { categories, isEquipment, openStatuses, slotStart, slotEnd, slotFields, openReservations, equipmentCapacity, ensureCapacity } = require('./scheduling');
+const { categories, isEquipment, openStatuses, slotEnd, slotFields, openReservations, equipmentCapacity, ensureCapacity, advanceReservations } = require('./scheduling');
 const defaultEmailService = require('./services/sms');
 
 const dayMs = 86400000;
@@ -105,9 +105,14 @@ function createApp({ store, jwtSecret = process.env.JWT_SECRET, emailService = d
     return { ...row, startDate: row.startDate + (row.bookingMode === 'timeslot' ? `T${row.startTime}:00+08:00` : 'T00:00:00+08:00'), endDate: row.endDate + (row.bookingMode === 'timeslot' ? `T${row.endTime}:00+08:00` : 'T23:59:59.999+08:00'), userName: user?.username || '未知用户', userNickname: user?.nickname || '', itemId: row.itemId || '' };
   };
   function expireRentals() {
-    store.db.prepare("UPDATE rentals SET status='cancelled', updatedAt=? WHERE bookingMode='daily' AND status='approved' AND endDate < ?").run(new Date().toISOString(), today());
-    for (const r of store.all('rentals')) if (r.bookingMode === 'timeslot' && ['pending','approved'].includes(r.status) && slotEnd(r) <= clock()) store.update('rentals', r.id, { status: 'cancelled' });
+    store.transaction(() => {
+      store.db.prepare("UPDATE rentals SET status='cancelled', updatedAt=? WHERE bookingMode='daily' AND status='approved' AND endDate < ?").run(new Date().toISOString(), today());
+      advanceReservations(store, clock());
+    });
   }
+  app.locals.syncRentals = expireRentals;
+  expireRentals();
+  app.use('/api', (_, res, next) => { expireRentals(); next(); });
   function setStock(item, availableStock, totalStock = item.totalStock) {
     return store.update('items', item.id, { totalStock, availableStock, status: stockStatus(availableStock, totalStock) });
   }
@@ -290,7 +295,9 @@ function createApp({ store, jwtSecret = process.env.JWT_SECRET, emailService = d
         if (req.body.startTime || req.body.endTime) fail(400, '该物品请按天租借');
         if (store.all('rentals').some(r => r.userId === req.user.id && r.itemId === item.id && ['pending','approved'].includes(r.status) && Date.now() - Date.parse(r.createdAt) < 30000)) fail(400, '请勿重复提交申请');
       }
-      return store.insert('rentals', { userId: req.user.id, itemId: item.id, itemCode: item.code, itemName: item.name, quantity, ...schedule, reason, status: item.requireApproval ? 'pending' : 'approved' });
+      const row = store.insert('rentals', { userId: req.user.id, itemId: item.id, itemCode: item.code, itemName: item.name, quantity, ...schedule, reason, status: item.requireApproval ? 'pending' : 'approved' });
+      if (row.bookingMode === 'timeslot' && row.status === 'approved') advanceReservations(store, clock());
+      return store.get('rentals', row.id);
     }); res.status(201).json({ message: '申请已提交，请等待管理员确认', rental: rentalDTO(rental) });
   });
   app.get('/api/rentals', auth, admin, (_, res) => { expireRentals(); res.json(store.all('rentals').map(rentalDTO)); });
@@ -304,7 +311,9 @@ function createApp({ store, jwtSecret = process.env.JWT_SECRET, emailService = d
       if (!['approved','rejected'].includes(status)) fail(400, '审批状态无效');
       if (status === 'approved' && rental.endDate < today()) fail(400, '申请已过期');
       if (status === 'approved' && rental.bookingMode === 'timeslot') ensureCapacity(store, find('items', rental.itemId, '物品不存在'), rental, rental.id, clock());
-      return store.update('rentals', rental.id, { status, adminNotes: text(req.body.adminNotes, '审批备注', 1000), approvedBy: req.user.id, approvedAt: new Date().toISOString() });
+      store.update('rentals', rental.id, { status, adminNotes: text(req.body.adminNotes, '审批备注', 1000), approvedBy: req.user.id, approvedAt: new Date(clock()).toISOString() });
+      if (status === 'approved') advanceReservations(store, clock());
+      return store.get('rentals', rental.id);
     });
   }
   app.put('/api/rentals/:id/approve', auth, admin, (req, res) => res.json({ message: '申请已处理', rental: rentalDTO(decide(req)) }));
@@ -313,14 +322,10 @@ function createApp({ store, jwtSecret = process.env.JWT_SECRET, emailService = d
     expireRentals();
     const rental = store.transaction(() => {
       const r = find('rentals', req.params.id, '租借记录不存在');
+      if (r.bookingMode === 'timeslot') fail(409, '固定设备按预约时间自动开始和完成，无需确认领取');
       if (r.status !== 'approved') fail(409, '该记录无需领取');
       const item = find('items', r.itemId, '物品不存在');
-      if (r.bookingMode === 'timeslot') {
-        if (clock() < slotStart(r)) fail(400, '预约尚未开始，请在预约时间段内确认使用');
-        if (clock() >= slotEnd(r)) fail(400, '预约时段已结束，无法确认使用');
-        ensureCapacity(store, item, r, r.id, clock());
-      }
-      if (item.availableStock < r.quantity) fail(400, r.bookingMode === 'timeslot' ? '设备仍在使用中或暂不可用，请联系管理员' : '库存不足');
+      if (item.availableStock < r.quantity) fail(400, '库存不足');
       setStock(item, item.availableStock - r.quantity);
       store.update('users', r.userId, { firstRental: false });
       return store.update('rentals', r.id, { status: 'active', pickedAt: new Date().toISOString() });
@@ -329,6 +334,7 @@ function createApp({ store, jwtSecret = process.env.JWT_SECRET, emailService = d
   app.put('/api/rentals/:id/return', auth, admin, (req, res) => {
     const rental = store.transaction(() => {
       const r = find('rentals', req.params.id, '租借记录不存在');
+      if (r.bookingMode === 'timeslot') fail(409, '固定设备到预约结束时间自动完成，无需确认归还');
       if (r.status !== 'active') fail(409, '该记录无需归还');
       const item = find('items', r.itemId, '物品不存在');
       if (item.availableStock + r.quantity > item.totalStock) fail(409, '库存记录不一致，请先核对库存');
@@ -491,10 +497,15 @@ async function start(env = process.env) {
   } catch (error) { store.close(); throw error; }
   console.log('Server running with SQLite on port ' + server.address().port);
   const timer = setInterval(runBackup, 24 * 60 * 60 * 1000); timer.unref();
+  const scheduleTimer = setInterval(() => {
+    try { app.locals.syncRentals(); }
+    catch (error) { console.error('Automatic equipment update failed:', error.code || error.name); }
+  }, 30000); scheduleTimer.unref();
   let closing;
   const onSignal = () => close().then(() => process.exit(0)).catch(() => process.exit(1));
   const close = () => closing ||= (async () => {
     clearInterval(timer);
+    clearInterval(scheduleTimer);
     for (const signal of ['SIGTERM','SIGINT']) process.off(signal, onSignal);
     await new Promise(resolve => server.close(resolve));
     if (store.backupPromise) await store.backupPromise;

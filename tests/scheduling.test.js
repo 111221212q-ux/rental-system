@@ -98,34 +98,77 @@ test('invalid, past, reversed, cross-day and over-quantity time slots create no 
   assert.equal(h.store.counts().rentals, 0);
 });
 
-test('pickup is only inside slot; active devices allow future reservations and require real return before next use', async t => {
+test('approved slots automatically start and finish at exact boundaries; adjacent uses release stock first and are idempotent', async t => {
   const h = await fixture(t), item = await h.item({ requireApproval: false });
   const first = (await h.booking(item)).data.rental;
-  assert.equal((await h.api('PUT', '/api/rentals/' + first.id + '/pickup', {})).status, 400);
-  h.setTime('12:00'); assert.equal((await h.api('PUT', '/api/rentals/' + first.id + '/pickup', {})).status, 200);
-  assert.equal(h.store.get('items', item.id).availableStock, 0);
   const next = (await h.booking(item, { startTime: '14:00', endTime: '16:00' })).data.rental; assert.ok(next);
-  h.setTime('14:00'); assert.equal((await h.api('PUT', '/api/rentals/' + next.id + '/pickup', {})).status, 400, 'active previous booking must really finish');
+  assert.equal((await h.api('PUT', '/api/rentals/' + first.id + '/pickup', {})).status, 409);
+  h.setTime('11:59'); await h.api('GET', '/api/rentals/my');assert.equal(h.store.get('rentals',first.id).status,'approved');
+  h.setTime('12:00'); await Promise.all([h.api('GET','/api/rentals/my'),h.api('GET','/api/items')]);
+  assert.equal(h.store.get('rentals',first.id).status,'active');
+  assert.equal(h.store.get('rentals',first.id).pickedAt,day(1)+'T04:00:00.000Z');
+  assert.equal(h.store.get('items', item.id).availableStock, 0);
+  assert.equal((await h.api('PUT','/api/rentals/'+first.id+'/return',{})).status,409);
+  h.setTime('14:00'); await h.api('GET','/api/items');
+  assert.equal(h.store.get('rentals',first.id).status,'returned');assert.equal(h.store.get('rentals',next.id).status,'active');
+  assert.equal(h.store.get('rentals',first.id).actualReturnDate,day(1)+'T06:00:00.000Z');
+  assert.equal(h.store.get('items',item.id).availableStock,0);
   const alerts = (await h.api('GET', '/api/notifications')).data.alerts;
-  assert.ok(alerts.some(a => a.rentalId === first.id && a.type === 'overdue'));
-  // At the end boundary the active record is still in use, rather than being auto-returned.
-  assert.equal(h.store.get('rentals', first.id).status, 'active');
-  h.setTime('14:01'); assert.ok((await h.api('GET', '/api/notifications')).data.alerts.some(a => a.rentalId === first.id && a.type === 'overdue'));
-  assert.equal((await h.api('PUT', '/api/rentals/' + first.id + '/return', {})).status, 200);
-  assert.equal((await h.api('PUT', '/api/rentals/' + next.id + '/pickup', {})).status, 200);
-  assert.equal((await h.api('PUT', '/api/rentals/' + next.id + '/return', {})).status, 200);
-  assert.equal((await h.api('PUT', '/api/rentals/' + next.id + '/return', {})).status, 409);
+  assert.equal(alerts.some(a=>a.rentalId===first.id&&a.type==='overdue'),false);
+  h.setTime('16:00');await h.api('GET','/api/rentals/my');const saved=h.store.get('rentals',next.id);
+  assert.equal(saved.status,'returned');await h.api('GET','/api/rentals/my');assert.deepEqual(h.store.get('rentals',next.id),saved);
   assert.equal(h.store.get('items', item.id).availableStock, 1);
+  const immediate=await h.booking(item,{startTime:'16:00',endTime:'17:00'});assert.equal(immediate.status,201);assert.equal(immediate.data.rental.status,'active','no-approval booking at the current minute starts in its creation transaction');assert.equal(h.store.get('items',item.id).availableStock,0);
 });
 
-test('pending and approved slots expire at end; expired holds do not prevent category change', async t => {
+test('unreviewed slots cancel while approved missed slots complete without stock churn; completed holds allow category change', async t => {
   const h = await fixture(t), pendingItem = await h.item(), approvedItem = await h.item({ requireApproval: false });
   const pending = (await h.booking(pendingItem)).data.rental, approved = (await h.booking(approvedItem)).data.rental;
   h.setTime('14:00');
   assert.equal((await h.api('PUT', '/api/rentals/' + approved.id + '/pickup', {})).status, 409);
   assert.equal((await h.api('PUT', '/api/items/' + pendingItem.id, { category: '电子模块' })).status, 200);
-  assert.equal(h.store.get('rentals', pending.id).status, 'cancelled'); assert.equal(h.store.get('rentals', approved.id).status, 'cancelled');
+  assert.equal(h.store.get('rentals', pending.id).status, 'cancelled'); assert.equal(h.store.get('rentals', approved.id).status, 'returned');
+  assert.equal(h.store.get('rentals',approved.id).pickedAt,day(1)+'T04:00:00.000Z');assert.equal(h.store.get('rentals',approved.id).actualReturnDate,day(1)+'T06:00:00.000Z');
+  assert.equal(h.store.get('items', approvedItem.id).availableStock, 1);
   assert.equal(h.store.get('items', pendingItem.id).availableStock, 1);
+});
+
+test('approval inside a running slot starts immediately; rejected and pending requests never become uses',async t=>{
+  const h=await fixture(t),item=await h.item({totalStock:3,maxRentalQty:3});
+  const pending=(await h.booking(item)).data.rental,rejected=(await h.booking(item)).data.rental,late=(await h.booking(item)).data.rental;
+  assert.equal((await h.api('PUT','/api/rentals/'+rejected.id+'/reject',{})).status,200);
+  h.setTime('13:00');const approved=await h.api('PUT','/api/rentals/'+late.id+'/approve',{status:'approved'});
+  assert.equal(approved.data.rental.status,'active');assert.equal(approved.data.rental.pickedAt,day(1)+'T05:00:00.000Z');assert.equal(h.store.get('items',item.id).availableStock,2);
+  assert.equal(h.store.get('rentals',pending.id).status,'pending');
+  h.setTime('14:00');await h.api('GET','/api/rentals');
+  assert.equal(h.store.get('rentals',pending.id).status,'cancelled');assert.equal(h.store.get('rentals',rejected.id).status,'rejected');assert.equal(h.store.get('rentals',late.id).status,'returned');assert.equal(h.store.get('items',item.id).availableStock,3);
+});
+
+test('restart catches up elapsed slots and starts current multi-unit use while preserving daily rentals',async t=>{
+  const h=await fixture(t),item=await h.item({requireApproval:false,totalStock:3,maxRentalQty:3}),dailyItem=await h.item({category:'电子模块',requireApproval:false});
+  const elapsed=(await h.booking(item,{startTime:'09:00',endTime:'10:00',quantity:2})).data.rental;
+  const current=(await h.booking(item,{quantity:2})).data.rental;
+  const daily=(await h.api('POST','/api/rentals',{itemId:dailyItem.id,quantity:1,startDate:day(1),endDate:day(2),reason:'按天实验'})).data.rental;
+  const beforeDaily=h.store.get('rentals',daily.id);
+  h.setTime('12:30');await h.restart();
+  assert.equal(h.store.get('rentals',elapsed.id).status,'returned');assert.equal(h.store.get('rentals',current.id).status,'active');assert.equal(h.store.get('items',item.id).availableStock,1);assert.deepEqual(h.store.get('rentals',daily.id),beforeDaily);
+  h.setTime('14:30');await h.restart();assert.equal(h.store.get('rentals',current.id).status,'returned');assert.equal(h.store.get('items',item.id).availableStock,3);assert.deepEqual(h.store.get('rentals',daily.id),beforeDaily);
+});
+
+test('automatic transitions roll back stock and all rows on failure and never credit or debit twice',async t=>{
+  const h=await fixture(t),item=await h.item({requireApproval:false});const rental=(await h.booking(item)).data.rental;
+  h.store.db.exec("CREATE TRIGGER fail_auto BEFORE UPDATE ON rentals WHEN NEW.status='active' BEGIN SELECT RAISE(ABORT,'simulated transition failure'); END;");
+  h.setTime('12:00');assert.equal((await h.api('GET','/api/rentals/my')).status,500);assert.equal(h.store.get('rentals',rental.id).status,'approved');assert.equal(h.store.get('items',item.id).availableStock,1);
+  h.store.db.exec('DROP TRIGGER fail_auto');await h.api('GET','/api/rentals/my');assert.equal(h.store.get('items',item.id).availableStock,0);
+  h.store.db.exec("CREATE TRIGGER fail_finish BEFORE UPDATE ON rentals WHEN NEW.status='returned' BEGIN SELECT RAISE(ABORT,'simulated completion failure'); END;");
+  h.setTime('14:00');assert.equal((await h.api('GET','/api/rentals/my')).status,500);assert.equal(h.store.get('items',item.id).availableStock,0);assert.equal(h.store.get('rentals',rental.id).status,'active');
+  h.store.db.exec('DROP TRIGGER fail_finish');await Promise.all([h.api('GET','/api/items'),h.api('GET','/api/rentals/my')]);assert.equal(h.store.get('items',item.id).availableStock,1);assert.equal(h.store.get('rentals',rental.id).status,'returned');
+});
+
+test('out-of-service stock never becomes negative and resumes when units become available',async t=>{
+  const h=await fixture(t),item=await h.item({requireApproval:false});const rental=(await h.booking(item)).data.rental;
+  h.store.update('items',item.id,{availableStock:0,status:'unavailable'});h.setTime('12:00');assert.equal((await h.api('GET','/api/items')).status,200);assert.equal(h.store.get('rentals',rental.id).status,'approved');assert.equal(h.store.get('items',item.id).availableStock,0);
+  h.store.update('items',item.id,{availableStock:1,status:'available'});await h.api('GET','/api/rentals/my');assert.equal(h.store.get('rentals',rental.id).status,'active');assert.equal(h.store.get('items',item.id).availableStock,0);
 });
 
 test('legacy daily reservations prevent changing booking mode and cannot be ignored by a fixed-equipment calendar', async t => {
@@ -167,6 +210,31 @@ test('frontend uses fixed time fields with stock zero and renders Beijing dates/
     for (const name of ['电子模块','电机电池','固定设备']) assert.ok(select.includes(name));
     assert.equal(select.includes('生活用品'), false);
   }
+});
+
+test('rental UI shows automatic equipment states and keeps manual controls only for daily loans',()=>{
+  const vm=require('node:vm'),html=fs.readFileSync(path.join(__dirname,'../frontend/public/app.html'),'utf8');
+  const helpers=html.split(/\r?\n/).filter(l=>/^function (beijingDate|rentalMoment|rentalRange|overdueLabel|rentalStatusLabel)\(/.test(l)).join('\n');
+  const nodes=new Map(),node=id=>{if(!nodes.has(id))nodes.set(id,{value:'',innerHTML:'',classList:{add(){},remove(){}}});return nodes.get(id)};
+  const row=(id,status,bookingMode)=>({id,status,bookingMode,itemName:id,quantity:1,startDate:day(1)+'T12:00:00+08:00',endDate:day(1)+'T14:00:00+08:00',startTime:'12:00',endTime:'14:00'});
+  const rows=[row('fixed-wait','approved','timeslot'),row('fixed-now','active','timeslot'),row('fixed-done','returned','timeslot'),row('daily-wait','approved','daily'),row('daily-now','active','daily')];
+  const context=vm.createContext({Intl,Date,document:{getElementById:node},myRentals:rows,allRentals:rows,adminContact:null,esc:s=>String(s??'')});
+  vm.runInContext(helpers+'\n'+html.slice(html.indexOf('function renderMyRentals()'),html.indexOf('// Admin'))+'\n'+html.slice(html.indexOf('function renderAdminPickup()'),html.indexOf('function renderAdminItems()')),context);
+  vm.runInContext('renderMyRentals();renderAdminPickup();renderAdminActive()',context);
+  const mine=node('my-rentals-table').innerHTML,pickup=node('pickup-table').innerHTML,active=node('active-table').innerHTML;
+  for(const label of ['待使用','使用中','已完成','到预约开始时间自动使用','到预约结束时间自动完成'])assert.ok(mine.includes(label),label);
+  assert.doesNotMatch(mine,/联系管理员开始使用|联系管理员结束使用/);
+  assert.doesNotMatch(pickup,/pickupRental\('fixed-wait'\)/);assert.match(pickup,/到预约时间自动开始/);assert.match(pickup,/pickupRental\('daily-wait'\)/);
+  assert.doesNotMatch(active,/returnRental\('fixed-now'\)/);assert.match(active,/到结束时间自动完成/);assert.match(active,/returnRental\('daily-now'\)/);
+});
+
+test('rental status polling skips inactive pages, hidden tabs and open forms and serializes updates',async()=>{
+  const vm=require('node:vm'),html=fs.readFileSync(path.join(__dirname,'../frontend/public/app.html'),'utf8');let calls=0,done,modal=false,token='token';
+  const visible=new Set(['page-my-rentals']);const doc={hidden:false,querySelector:()=>modal?{}:null,getElementById:id=>({classList:{contains:()=>!visible.has(id)}})};
+  const context=vm.createContext({document:doc,gt:()=>token,adminTab:'active',refreshRentalPage:()=>{calls++;return new Promise(resolve=>{done=resolve})}});
+  vm.runInContext(html.slice(html.indexOf('async function refreshVisibleRentals()'),html.indexOf('function renderPage(')),context);
+  const first=vm.runInContext('refreshVisibleRentals()',context);await vm.runInContext('refreshVisibleRentals()',context);assert.equal(calls,1);done();await first;
+  for(const change of [()=>{modal=true},()=>{modal=false;doc.hidden=true},()=>{doc.hidden=false;token=''},()=>{token='token';visible.clear()}]){change();await vm.runInContext('refreshVisibleRentals()',context);assert.equal(calls,1)}
 });
 
 test('failed schema upgrade rolls back all new fields and preserves the v1 database', t => {

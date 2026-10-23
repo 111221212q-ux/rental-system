@@ -488,7 +488,7 @@ tr:hover td{background:linear-gradient(90deg,rgba(99,102,241,.03),transparent)}
         <div class="page-header"><h2>管理后台</h2></div>
         <div class="tabs">
           <button class="tab-btn active" onclick="switchAdminTab('approvals',this)">待审核 <span class="badge badge-pending" id="approvals-badge">0</span></button>
-          <button class="tab-btn" onclick="switchAdminTab('pickup',this)">待领取 <span class="badge badge-info" id="pickup-badge">0</span></button>
+          <button class="tab-btn" onclick="switchAdminTab('pickup',this)">待领取 / 待使用 <span class="badge badge-info" id="pickup-badge">0</span></button>
           <button class="tab-btn" onclick="switchAdminTab('active',this)">租借中</button>
           <button class="tab-btn" onclick="switchAdminTab('items',this)">物品管理</button>
           <button class="tab-btn" onclick="switchAdminTab('users',this)">用户管理</button>
@@ -781,6 +781,7 @@ tr:hover td{background:linear-gradient(90deg,rgba(99,102,241,.03),transparent)}
           • 点击卡片任意位置查看详情（图片、描述、评论、数据手册）<br>
           • 物品标注「需要管理员审核」的需管理员批准，否则自动通过<br>
           • 点击「申请租借」填写租期、数量、用途，勾选赔偿条款后提交<br>
+          • 固定设备审核通过后，到预约开始时间自动使用，结束后自动完成，无需管理员开始或结束<br>
           • 注意：租借天数不能超过物品的最长租期，数量不能超过限租数量</div>
         </div>
         <div style="margin-bottom:12px">
@@ -817,10 +818,11 @@ tr:hover td{background:linear-gradient(90deg,rgba(99,102,241,.03),transparent)}
           • 搜索框可按用户名或物品名快速查找</div>
         </div>
         <div style="margin-bottom:12px">
-          <div style="font-weight:600;color:var(--text);margin-bottom:4px">② 待领取</div>
+          <div style="font-weight:600;color:var(--text);margin-bottom:4px">② 待领取 / 待使用</div>
           <div>• 已批准但未领取的物品列表<br>
           • 已过期的申请会自动取消（不计入逾期），不在列表中显示<br>
           • 学生线下领取后点击「确认领取」，物品库存自动扣减<br>
+          • 固定设备到预约开始时间自动进入使用中，无需确认领取<br>
           • 搜索框可按用户名或物品名快速查找</div>
         </div>
         <div style="margin-bottom:12px">
@@ -828,6 +830,7 @@ tr:hover td{background:linear-gradient(90deg,rgba(99,102,241,.03),transparent)}
           <div>• 所有正在租借的物品（status=active）<br>
           • 已过期的物品显示红色背景 + "逾期X天"标记<br>
           • 学生归还后点击「确认归还」，物品库存自动恢复<br>
+          • 固定设备到预约结束时间自动完成并释放数量，无需确认归还<br>
           • 逾期记录可点击「催还」发送邮件通知<br>
           • 搜索框可按用户名或物品名快速查找</div>
         </div>
@@ -904,6 +907,7 @@ function canBookItem(item){return isFixedEquipment(item)?item.totalStock>0:item.
 function rentalMoment(row,field){return new Intl.DateTimeFormat('zh-CN',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit',...(row.bookingMode==='timeslot'?{hour:'2-digit',minute:'2-digit',hour12:false}:{})}).format(new Date(row[field]))}
 function rentalRange(row){return row.bookingMode==='timeslot'?beijingDate(new Date(row.startDate))+' '+row.startTime+'–'+row.endTime:rentalMoment(row,'startDate')+'–'+rentalMoment(row,'endDate')}
 function overdueLabel(row,now=new Date()){return row.bookingMode==='timeslot'?'使用时段已结束':'逾期'+Math.floor((now-new Date(row.endDate))/86400000)+'天'}
+function rentalStatusLabel(row){return (row.bookingMode==='timeslot'?{pending:'待审核',approved:'待使用',active:'使用中',returned:'已完成',rejected:'已拒绝',cancelled:'已取消'}:{pending:'待审核',approved:'已通过（待线下领取）',active:'租借中',returned:'已归还',rejected:'已拒绝',cancelled:'已取消'})[row.status]||row.status}
 function configureItemCategory(prefix){
   const fixed=document.getElementById(prefix+'-item-category').value==='固定设备';
   document.getElementById(prefix+'-item-days').closest('.form-group').classList.toggle('hidden',fixed);
@@ -1084,7 +1088,7 @@ async function handleRegister(){
   }catch(e){enableBtn(btn);errEl.innerHTML='⚠️ '+e.message;errEl.classList.remove('hidden')}
 }
 
-function handleLogout(){if(window._ct){clearInterval(_ct);_ct=null}ca();document.getElementById('login-page').classList.remove('hidden');document.getElementById('main-content').classList.add('hidden');enableBtn(document.getElementById('login-btn'));enableBtn(document.getElementById('reg-btn'))}
+function handleLogout(){if(window._ct){clearInterval(_ct);_ct=null}clearInterval(window._rentalRefreshTimer);ca();document.getElementById('login-page').classList.remove('hidden');document.getElementById('main-content').classList.add('hidden');enableBtn(document.getElementById('login-btn'));enableBtn(document.getElementById('reg-btn'))}
 function toggleSidebar(){document.getElementById('sidebar').classList.toggle('open');document.getElementById('sidebar-overlay').classList.toggle('open')}
 
 async function enterMain(){
@@ -1096,6 +1100,7 @@ async function enterMain(){
   const isAdmin=currentUser.role==='admin'||currentUser.role==='superadmin';
   document.querySelectorAll('.admin-only').forEach(el=>{if(isAdmin)el.classList.remove('hidden');else el.classList.add('hidden')});
   updateDateTime();if(window._ct)_ct=null;_ct=setInterval(updateDateTime,10000);
+  clearInterval(window._rentalRefreshTimer);window._rentalRefreshTimer=setInterval(refreshVisibleRentals,30000);
   await loadData();switchPage('dashboard');
 }
 
@@ -1135,6 +1140,13 @@ async function refreshRentalPage(page){
     if(document.getElementById('page-'+page).classList.contains('hidden'))return;
     if(page==='admin')switchAdminTab(adminTab);else renderMyRentals();
   }catch(error){toast('租借记录刷新失败：'+error.message,'error')}
+}
+async function refreshVisibleRentals(){
+  if(refreshVisibleRentals.busy||document.hidden||!gt()||document.querySelector('.modal-overlay:not(.hidden)'))return;
+  const page=!document.getElementById('page-my-rentals').classList.contains('hidden')?'my-rentals':!document.getElementById('page-admin').classList.contains('hidden')&&['pickup','active'].includes(adminTab)?'admin':null;
+  if(!page)return;
+  refreshVisibleRentals.busy=true;
+  try{await refreshRentalPage(page)}finally{refreshVisibleRentals.busy=false}
 }
 function renderPage(p){if(p==='dashboard')renderDashboard();else if(p==='items')renderItems();else if(p==='my-rentals')renderMyRentals();else if(p==='profile')renderProfile();else if(p==='admin')renderAdminApprovals();else if(p==='detail')renderDetail()}
 
@@ -1215,13 +1227,13 @@ function renderMyRentals(){
   const contactStr=[ac.wechat&&`微信:${ac.wechat}`,ac.phone&&`电话:${ac.phone}`,`或去 ${ac.location} 领取`].filter(Boolean).join(' | ');
   const st={pending:'等待管理员审核',approved:contactStr||'请联系管理员线下领取物品',rejected:'申请未通过',active:'请在租期内联系管理员归还',returned:'',overdue:'已逾期，请尽快联系管理员',cancelled:'已取消'};
   t.innerHTML=myRentals.map(r=>{
-    const isOverdue=r.status==='active'&&new Date(r.endDate)<now;
+    const isOverdue=r.bookingMode!=='timeslot'&&r.status==='active'&&new Date(r.endDate)<now;
     const status=isOverdue?'overdue':r.status;
     return `<tr ${isOverdue?'style="background:#fef2f2"':''}>
       <td><strong>${esc(r.itemName)}</strong></td><td>${r.quantity}</td>
       <td style="font-size:13px">${rentalMoment(r,'startDate')}</td><td style="font-size:13px">${rentalMoment(r,'endDate')}</td>
-      <td><span class="badge badge-${status}">${sm[status]||r.status}</span></td>
-      <td style="font-size:13px;color:var(--text-muted)">${r.status==='rejected'&&r.adminNotes?'拒绝原因：'+esc(r.adminNotes):r.bookingMode==='timeslot'?(isOverdue?'时段已结束，请联系管理员结束使用':({pending:'等待管理员审核',approved:'请在预约时段内联系管理员开始使用',active:'请按预约结束时间结束使用'}[r.status]||st[r.status]||'-')):isOverdue?'已逾期，请联系管理员归还':st[r.status]||'-'}</td>
+      <td><span class="badge badge-${status}">${r.bookingMode==='timeslot'?rentalStatusLabel(r):sm[status]||r.status}</span></td>
+      <td style="font-size:13px;color:var(--text-muted)">${r.status==='rejected'&&r.adminNotes?'拒绝原因：'+esc(r.adminNotes):r.bookingMode==='timeslot'?({pending:'等待管理员审核',approved:'审核已通过，到预约开始时间自动使用',active:'到预约结束时间自动完成，无需管理员操作',returned:'预约已完成'}[r.status]||st[r.status]||'-'):isOverdue?'已逾期，请联系管理员归还':st[r.status]||'-'}</td>
     </tr>`;
   }).join('');
 }
@@ -1301,7 +1313,7 @@ function renderAdminPickup(){
 	  t.innerHTML=p.map(r=>{const _n=new Date(),_od=_n>new Date(r.endDate)?' style="background:#fef2f2"':'';return `<tr${_od}>
     <td>${r.userName||r.userId}${r.userNickname?' ('+r.userNickname+')':''}</td><td><strong>${r.itemName}</strong></td><td>${r.quantity}</td>
     <td style="font-size:13px">${rentalRange(r)}${_n>new Date(r.endDate)?`<span style="color:#dc2626;font-weight:600;margin-left:8px">已过期</span>`:``}</td>
-    <td><div style="display:flex;gap:4px">${_n>new Date(r.endDate)?`<button class="btn btn-danger btn-sm" onclick="deleteRental('${r.id}')">删除</button>`:``}<button class="btn btn-primary btn-sm" onclick="pickupRental('${r.id}')">${r.bookingMode==='timeslot'?'开始使用':'确认领取'}</button></div></td>
+    <td>${r.bookingMode==='timeslot'?'<span style="color:var(--text-muted);font-size:13px">到预约时间自动开始</span>':`<div style="display:flex;gap:4px">${_n>new Date(r.endDate)?`<button class="btn btn-danger btn-sm" onclick="deleteRental('${r.id}')">删除</button>`:``}<button class="btn btn-primary btn-sm" onclick="pickupRental('${r.id}')">确认领取</button></div>`}</td>
   </tr>`}).join('');
 }
 async function pickupRental(id){
@@ -1321,7 +1333,7 @@ function renderAdminActive(){
 	  t.innerHTML=a.map(r=>{const _n2=new Date(),_od2=_n2>new Date(r.endDate)?' style="background:#fef2f2"':'';return `<tr${_od2}>
     <td>${r.userName||r.userId}${r.userNickname?' ('+r.userNickname+')':''}</td><td><strong>${r.itemName}</strong></td><td>${r.quantity}</td>
     <td style="font-size:13px">${rentalRange(r)}${_n2>new Date(r.endDate)?`<span style="color:#dc2626;font-weight:600;margin-left:8px">${overdueLabel(r,_n2)}</span>`:``}</td>
-    <td>${r.status==='approved'?`<button class="btn btn-primary btn-sm" onclick="pickupRental('${r.id}')">${r.bookingMode==='timeslot'?'开始使用':'确认领取'}</button>`:`<button class="btn btn-warning btn-sm" onclick="returnRental('${r.id}')">${r.bookingMode==='timeslot'?'结束使用':'确认归还'}</button>`}</td>
+    <td>${r.bookingMode==='timeslot'?'<span style="color:var(--text-muted);font-size:13px">到结束时间自动完成</span>':`<button class="btn btn-warning btn-sm" onclick="returnRental('${r.id}')">确认归还</button>`}</td>
   </tr>`}).join('');
 }
 async function returnRental(id){
@@ -1389,7 +1401,7 @@ function renderAdminStats(){
   document.getElementById('admin-stat-severe-overdue').textContent=severeOverdue.length;
   checkSmsStatus();
   const b={};allRentals.forEach(r=>{b[r.status]=(b[r.status]||0)+1});
-  const t=document.getElementById('stats-breakdown'),sm={pending:'待审核',approved:'已通过',rejected:'已拒绝',active:'租借中',returned:'已归还',overdue:'逾期',cancelled:'已取消'};
+  const t=document.getElementById('stats-breakdown'),sm={pending:'待审核',approved:'已通过',rejected:'已拒绝',active:'租借中',returned:'已归还 / 已完成',overdue:'逾期',cancelled:'已取消'};
   if(Object.keys(b).length===0){t.innerHTML='<tr><td colspan="2" style="text-align:center;color:var(--text-muted);padding:24px">暂无数据</td></tr>';return}
   t.innerHTML=Object.entries(b).map(([k,v])=>`<tr style="cursor:pointer" onclick="showStatsDetail('status','${k}')"><td>${sm[k]||k}</td><td><strong>${v}</strong> 条</td></tr>`).join('');
 }
@@ -1397,7 +1409,7 @@ function renderAdminStats(){
 function showStatsDetail(type,filter){
   const card=document.getElementById('stats-detail-card');card.classList.remove('hidden');
   const thead=document.getElementById('stats-detail-thead'),tbody=document.getElementById('stats-detail-tbody'),title=document.getElementById('stats-detail-title');
-  const sm={pending:'待审核',approved:'已通过',rejected:'已拒绝',active:'租借中',returned:'已归还',overdue:'逾期',cancelled:'已取消'};
+  const sm={pending:'待审核',approved:'已通过',rejected:'已拒绝',active:'租借中',returned:'已归还 / 已完成',overdue:'逾期',cancelled:'已取消'};
 
   if(type==='items'){
     title.textContent='物品列表 ('+allItems.length+'件)';
@@ -1411,7 +1423,7 @@ function showStatsDetail(type,filter){
   }else if(type==='rentals'){
     title.textContent='租借记录 ('+allRentals.length+'条)';
     thead.innerHTML='<tr><th>用户</th><th>物品</th><th>数量</th><th>开始</th><th>结束</th><th>状态</th></tr>';
-    tbody.innerHTML=allRentals.map(r=>`<tr><td>${esc(r.userName||r.userId)}${r.userNickname?' ('+esc(r.userNickname)+')':''}</td><td><strong>${esc(r.itemName)}</strong></td><td>${r.quantity}</td><td>${rentalMoment(r,'startDate')}</td><td>${rentalMoment(r,'endDate')}</td><td><span class="badge badge-${r.status}">${sm[r.status]||r.status}</span></td></tr>`).join('');
+    tbody.innerHTML=allRentals.map(r=>`<tr><td>${esc(r.userName||r.userId)}${r.userNickname?' ('+esc(r.userNickname)+')':''}</td><td><strong>${esc(r.itemName)}</strong></td><td>${r.quantity}</td><td>${rentalMoment(r,'startDate')}</td><td>${rentalMoment(r,'endDate')}</td><td><span class="badge badge-${r.status}">${rentalStatusLabel(r)}</span></td></tr>`).join('');
   }else if(type==='pending'){
     const p=allRentals.filter(r=>r.status==='pending');
     title.textContent='待审核申请 ('+p.length+'条)';
@@ -1421,7 +1433,7 @@ function showStatsDetail(type,filter){
     const list=allRentals.filter(r=>r.status===filter);
     title.textContent=(sm[filter]||filter)+' ('+list.length+'条)';
     thead.innerHTML='<tr><th>用户</th><th>物品</th><th>数量</th><th>开始</th><th>结束</th><th>状态</th></tr>';
-    tbody.innerHTML=list.length===0?'<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:24px">暂无数据</td></tr>':list.map(r=>`<tr><td>${esc(r.userName||r.userId)}${r.userNickname?' ('+esc(r.userNickname)+')':''}</td><td><strong>${esc(r.itemName)}</strong></td><td>${r.quantity}</td><td>${rentalMoment(r,'startDate')}</td><td>${rentalMoment(r,'endDate')}</td><td><span class="badge badge-${r.status}">${sm[r.status]||r.status}</span></td></tr>`).join('');
+    tbody.innerHTML=list.length===0?'<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:24px">暂无数据</td></tr>':list.map(r=>`<tr><td>${esc(r.userName||r.userId)}${r.userNickname?' ('+esc(r.userNickname)+')':''}</td><td><strong>${esc(r.itemName)}</strong></td><td>${r.quantity}</td><td>${rentalMoment(r,'startDate')}</td><td>${rentalMoment(r,'endDate')}</td><td><span class="badge badge-${r.status}">${rentalStatusLabel(r)}</span></td></tr>`).join('');
   }else if(type==='overdue'){
     const now=new Date();const list=allRentals.filter(r=>r.status==='active'&&new Date(r.endDate)<now);
     title.textContent='逾期租借 ('+list.length+'条)';
@@ -1443,12 +1455,12 @@ function showStatsDetail(type,filter){
 }
 function exportStats(){
   const now=new Date();const overdue=allRentals.filter(r=>r.status==='active'&&new Date(r.endDate)<now);
-  const sm={pending:'待审核',approved:'已通过',rejected:'已拒绝',active:'租借中',returned:'已归还',overdue:'逾期',cancelled:'已取消'};
+  const sm={pending:'待审核',approved:'已通过',rejected:'已拒绝',active:'租借中',returned:'已归还 / 已完成',overdue:'逾期',cancelled:'已取消'};
   let csv='﻿'; // BOM for Excel UTF-8
   csv+='数据统计报告\n\n';
   csv+='物品总数,'+allItems.length+'\n总租借,'+allRentals.length+'\n注册用户,'+allUsers.length+'\n待审核,'+allRentals.filter(r=>r.status==='pending').length+'\n逾期,'+overdue.length+'\n严重逾期(>15天),'+overdue.filter(r=>Math.floor((now-new Date(r.endDate))/(86400000))>15).length+'\n\n';
   csv+='=== 租借记录 ===\n用户,物品,数量,开始日期,结束日期,状态\n';
-  allRentals.forEach(r=>{csv+=(r.userName||r.userId)+','+(r.itemName)+','+r.quantity+','+r.startDate+','+r.endDate+','+(sm[r.status]||r.status)+'\n'});
+  allRentals.forEach(r=>{csv+=(r.userName||r.userId)+','+(r.itemName)+','+r.quantity+','+r.startDate+','+r.endDate+','+rentalStatusLabel(r)+'\n'});
   csv+='\n=== 物品列表 ===\n编码,名称,分类,可用/总库存,最长天数\n';
   allItems.forEach(i=>{csv+=i.code+','+i.name+','+i.category+','+i.availableStock+'/'+i.totalStock+','+i.maxRentalDays+'天\n'});
   csv+='\n=== 用户列表 ===\n学号,邮箱,微信,手机,角色\n';
